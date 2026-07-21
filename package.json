@@ -1,0 +1,21 @@
+{
+  "name": "react-intelligence",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "dev:server": "pnpm --filter @react-intelligence/server dev",
+    "dev:dashboard": "pnpm --filter @react-intelligence/dashboard dev",
+    "dev:demo": "pnpm --filter @react-intelligence/demo dev",
+    "dev:test-app": "pnpm --filter @react-intelligence/test-app dev",
+    "build": "pnpm -r build",
+    "seed": "pnpm --filter @react-intelligence/server seed",
+    "typecheck": "pnpm --filter @react-intelligence/shared build && pnpm --filter @react-intelligence/sdk build && pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@11.9.0"
+}
