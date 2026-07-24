@@ -7,6 +7,8 @@ React Intelligence is a self-hosted runtime analytics MVP for React apps. It inc
 - `apps/dashboard`, a dark Radix UI observability dashboard.
 - `apps/demo`, a tiny React app wired to the SDK.
 
+<img width="1280" height="720" alt="2026-07-24 13 47 13" src="https://github.com/user-attachments/assets/48e568d9-1cd4-4de9-9fe3-07d11994b00f" />
+
 ## Quick Start
 
 ```bash
