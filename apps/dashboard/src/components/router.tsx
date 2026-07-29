@@ -1,10 +1,18 @@
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { useEffect, useState } from "react";
 
+function getWindowLocation() {
+    return {
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: window.location.hash,
+    }
+}
+
 export function useLocation() {
-  const [location, setLocation] = useState(window.location);
+  const [location, setLocation] = useState(getWindowLocation);
   useEffect(() => {
-    const onPop = () => setLocation(window.location);
+    const onPop = () => setLocation(getWindowLocation);
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
