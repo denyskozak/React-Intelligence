@@ -2,8 +2,9 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Separator from "@radix-ui/react-separator";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { Activity, Bot, Gauge, Home, Menu, Network, Search, Siren, TableProperties } from "lucide-react";
-import { useMemo } from "react";
-import { Link, useLocation } from "./components/router";
+import type { ReactNode } from "react";
+import { Link, NavLink, Navigate, Route, Routes, matchPath, useLocation, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { AnalyzePage } from "./pages/AnalyzePage";
 import { AppOverviewPage } from "./pages/AppOverviewPage";
 import { ErrorsPage } from "./pages/ErrorsPage";
@@ -12,20 +13,29 @@ import { NetworkPage } from "./pages/NetworkPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { PerformancePage } from "./pages/PerformancePage";
 
-const nav = [
-  { href: "/", label: "Overview", icon: Home },
-  { href: "/apps/demo-app", label: "App", icon: Activity },
-  { href: "/apps/demo-app/events", label: "Events", icon: TableProperties },
-  { href: "/apps/demo-app/errors", label: "Errors", icon: Siren },
-  { href: "/apps/demo-app/performance", label: "Performance", icon: Gauge },
-  { href: "/apps/demo-app/network", label: "Network", icon: Network },
-  { href: "/apps/demo-app/analyze", label: "AI Analysis", icon: Bot }
+import {useAsync} from "./pages/hooks";
+import { api } from "./lib/api"
+import { SelectBox, EmptyState, ErrorState, Loading} from "./components/ui";
+
+const appNav = [
+  { path: "", label: "App", icon: Activity, end: true },
+  { path: "/events", label: "Events", icon: TableProperties },
+  { path: "/errors", label: "Errors", icon: Siren },
+  { path: "/performance", label: "Performance", icon: Gauge },
+  { path: "/network", label: "Network", icon: Network },
+  { path: "/analyze", label: "AI Analysis", icon: Bot }
 ];
 
 export function App() {
   const location = useLocation();
-  const page = useMemo(() => route(location.pathname), [location.pathname]);
+  const navigate = useNavigate();
+  const appMatch = matchPath({ path: "/apps/:appId/*", end: false }, location.pathname);
+  const currentAppId = appMatch?.params.appId;
+  const appBase = currentAppId ? `/apps/${encodeURIComponent(currentAppId)}` : undefined;
 
+  const {data, loading, error} = useAsync(api.overview, []);
+  const apps = data?.apps ?? [];
+  const selectedAppId = currentAppId ?? apps[0]?.appId;
   return (
     <Tooltip.Provider>
       <div className="grid min-h-screen grid-cols-[240px_1fr] bg-ink text-slate-100">
@@ -39,23 +49,33 @@ export function App() {
           </div>
           <Separator.Root className="my-4 h-px bg-line" />
           <nav className="space-y-1">
-            {nav.map((item) => {
+            <NavLink to="/" end className={navClassName}>
+              <Home size={16} />
+              Overview
+            </NavLink>
+            {appBase ? appNav.map((item) => {
               const Icon = item.icon;
-              const active = location.pathname === item.href;
               return (
-                <Link key={item.href} href={item.href} className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${active ? "bg-line text-white" : "text-muted hover:bg-line/60 hover:text-white"}`}>
+                <NavLink key={item.path || "app"} to={`${appBase}${item.path}`} end={item.end} className={navClassName}>
                   <Icon size={16} />
                   {item.label}
-                </Link>
+                </NavLink>
               );
-            })}
+            }) : null}
           </nav>
         </aside>
         <main className="min-w-0">
           <header className="flex h-16 items-center justify-between border-b border-line px-6">
             <div className="flex items-center gap-3">
               <Search size={18} className="text-muted" />
-              <span className="text-sm text-muted">demo-app telemetry workspace</span>
+
+              <SelectBox
+              value={selectedAppId}
+              items={apps.map((app) => app.appId)}
+              onValueChange={(nextAppId) => {
+              navigate(buildAppPath(location.pathname, nextAppId));
+              }}
+              ></SelectBox>
             </div>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger className="rounded-md border border-line p-2 hover:bg-line" aria-label="Menu"><Menu size={18} /></DropdownMenu.Trigger>
@@ -65,20 +85,45 @@ export function App() {
               </DropdownMenu.Content>
             </DropdownMenu.Root>
           </header>
-          <div className="p-6">{page}</div>
+          <div className="p-6">
+            <Routes>
+              <Route path="/" element={<OverviewPage />} />
+              <Route path="/apps/:appId" element={<AppPage>{(appId) => <AppOverviewPage appId={appId} />}</AppPage>} />
+              <Route path="/apps/:appId/events" element={<AppPage>{(appId) => <EventsPage appId={appId} />}</AppPage>} />
+              <Route path="/apps/:appId/errors" element={<AppPage>{(appId) => <ErrorsPage appId={appId} />}</AppPage>} />
+              <Route path="/apps/:appId/performance" element={<AppPage>{(appId) => <PerformancePage appId={appId} />}</AppPage>} />
+              <Route path="/apps/:appId/network" element={<AppPage>{(appId) => <NetworkPage appId={appId} />}</AppPage>} />
+              <Route path="/apps/:appId/analyze" element={<AppPage>{(appId) => <AnalyzePage appId={appId} />}</AppPage>} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </div>
         </main>
       </div>
     </Tooltip.Provider>
   );
 }
 
-function route(pathname: string) {
-  const appId = pathname.split("/")[2] ?? "demo-app";
-  if (pathname === "/") return <OverviewPage />;
-  if (pathname.endsWith("/events")) return <EventsPage appId={appId} />;
-  if (pathname.endsWith("/errors")) return <ErrorsPage appId={appId} />;
-  if (pathname.endsWith("/performance")) return <PerformancePage appId={appId} />;
-  if (pathname.endsWith("/network")) return <NetworkPage appId={appId} />;
-  if (pathname.endsWith("/analyze")) return <AnalyzePage appId={appId} />;
-  return <AppOverviewPage appId={appId} />;
+function navClassName({ isActive }: { isActive: boolean }) {
+  return `flex items-center gap-2 rounded-md px-3 py-2 text-sm ${isActive ? "bg-line text-white" : "text-muted hover:bg-line/60 hover:text-white"}`;
+}
+
+function AppPage({ children }: { children: (appId: string) => ReactNode }) {
+  const { appId } = useParams<{ appId: string }>();
+  return appId ? children(appId) : <Navigate to="/" replace />;
+}
+
+function NotFoundPage() {
+  return (
+    <div className="card flex min-h-64 flex-col items-center justify-center p-8 text-center">
+      <p className="text-2xl font-semibold">Page not found</p>
+      <p className="mt-2 text-sm text-muted">The requested telemetry view does not exist.</p>
+      <Link to="/" className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-ink">Back to overview</Link>
+    </div>
+  );
+}
+function buildAppPath(pathname: string, nextAppId: string) {
+  const match = matchPath({path: "/apps/:appId/*", end: false}, pathname);
+  const rest = match?.params["*"];
+
+  return rest ? `/apps/${encodeURIComponent(nextAppId)}/${rest}` : `/apps/${encodeURIComponent(nextAppId)}`;
 }
