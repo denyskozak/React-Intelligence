@@ -4,6 +4,7 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import { Activity, Bot, Gauge, Home, Menu, Network, Search, Siren, TableProperties } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, NavLink, Navigate, Route, Routes, matchPath, useLocation, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { AnalyzePage } from "./pages/AnalyzePage";
 import { AppOverviewPage } from "./pages/AppOverviewPage";
 import { ErrorsPage } from "./pages/ErrorsPage";
@@ -11,6 +12,10 @@ import { EventsPage } from "./pages/EventsPage";
 import { NetworkPage } from "./pages/NetworkPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { PerformancePage } from "./pages/PerformancePage";
+
+import {useAsync} from "./pages/hooks";
+import { api } from "./lib/api"
+import { SelectBox, EmptyState, ErrorState, Loading} from "./components/ui";
 
 const appNav = [
   { path: "", label: "App", icon: Activity, end: true },
@@ -23,10 +28,14 @@ const appNav = [
 
 export function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const appMatch = matchPath({ path: "/apps/:appId/*", end: false }, location.pathname);
   const currentAppId = appMatch?.params.appId;
   const appBase = currentAppId ? `/apps/${encodeURIComponent(currentAppId)}` : undefined;
 
+  const {data, loading, error} = useAsync(api.overview, []);
+  const apps = data?.apps ?? [];
+  const selectedAppId = currentAppId ?? apps[0]?.appId;
   return (
     <Tooltip.Provider>
       <div className="grid min-h-screen grid-cols-[240px_1fr] bg-ink text-slate-100">
@@ -59,7 +68,14 @@ export function App() {
           <header className="flex h-16 items-center justify-between border-b border-line px-6">
             <div className="flex items-center gap-3">
               <Search size={18} className="text-muted" />
-              <span className="text-sm text-muted">{currentAppId ? `${currentAppId} telemetry workspace` : "All telemetry workspaces"}</span>
+
+              <SelectBox
+              value={selectedAppId}
+              items={apps.map((app) => app.appId)}
+              onValueChange={(nextAppId) => {
+              navigate(buildAppPath(location.pathname, nextAppId));
+              }}
+              ></SelectBox>
             </div>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger className="rounded-md border border-line p-2 hover:bg-line" aria-label="Menu"><Menu size={18} /></DropdownMenu.Trigger>
@@ -104,4 +120,10 @@ function NotFoundPage() {
       <Link to="/" className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-ink">Back to overview</Link>
     </div>
   );
+}
+function buildAppPath(pathname: string, nextAppId: string) {
+  const match = matchPath({path: "/apps/:appId/*", end: false}, pathname);
+  const rest = match?.params["*"];
+
+  return rest ? `/apps/${encodeURIComponent(nextAppId)}/${rest}` : `/apps/${encodeURIComponent(nextAppId)}`;
 }
