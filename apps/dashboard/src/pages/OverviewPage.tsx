@@ -1,4 +1,4 @@
-import { Link } from "../components/router";
+import { Link } from "react-router-dom";
 import { Card, EmptyState, ErrorState, Loading, MetricCard } from "../components/ui";
 import { api } from "../lib/api";
 import { useAsync } from "./hooks";
@@ -26,7 +26,7 @@ export function OverviewPage() {
           <h2 className="mb-4 font-semibold">Recent Apps</h2>
           <div className="space-y-2">
             {data.apps.map((app) => (
-              <Link key={app.appId} href={`/apps/${app.appId}`} className="flex items-center justify-between rounded-md border border-line p-3 hover:bg-line/40">
+              <Link key={app.appId} to={`/apps/${encodeURIComponent(app.appId)}`} className="flex items-center justify-between rounded-md border border-line p-3 hover:bg-line/40">
                 <span>
                   <span className="block font-medium">{app.appId}</span>
                   <span className="text-xs text-muted">{app.environments.join(", ") || "unknown env"} · {app.releases.join(", ") || "no release"}</span>
