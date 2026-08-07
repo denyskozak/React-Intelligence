@@ -3,8 +3,7 @@ import * as Separator from "@radix-ui/react-separator";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { Activity, Bot, Gauge, Home, Menu, Network, Search, Siren, TableProperties } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link, NavLink, Navigate, Route, Routes, matchPath, useLocation, useParams } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Link, NavLink, Navigate, Route, Routes, matchPath, useLocation, useParams, useNavigate } from "react-router-dom";
 import { AnalyzePage } from "./pages/AnalyzePage";
 import { AppOverviewPage } from "./pages/AppOverviewPage";
 import { ErrorsPage } from "./pages/ErrorsPage";
@@ -35,7 +34,10 @@ export function App() {
 
   const {data, loading, error} = useAsync(api.overview, []);
   const apps = data?.apps ?? [];
-  const selectedAppId = currentAppId ?? apps[0]?.appId;
+  const appIds = apps.map((app) => app.appId);
+  const selectedAppId = currentAppId ?? appIds[0];
+  const canSelectApp = selectedAppId && appIds.includes(selectedAppId);
+
   return (
     <Tooltip.Provider>
       <div className="grid min-h-screen grid-cols-[240px_1fr] bg-ink text-slate-100">
@@ -69,13 +71,21 @@ export function App() {
             <div className="flex items-center gap-3">
               <Search size={18} className="text-muted" />
 
-              <SelectBox
-              value={selectedAppId}
-              items={apps.map((app) => app.appId)}
-              onValueChange={(nextAppId) => {
-              navigate(buildAppPath(location.pathname, nextAppId));
-              }}
-              ></SelectBox>
+              {loading ? (
+                  <span className="text-sm text-muted">Loading...</span>
+              ) : error ? (
+                  <span className="text-sm text-bad">Apps failed to load</span>
+              ) : canSelectApp ? (
+                  <SelectBox
+                      value={selectedAppId}
+                      items={appIds}
+                      onValueChange={(nextAppId) => {
+                        navigate(buildAppPath(location.pathname, nextAppId));
+                      }}
+                  />
+              ) : (
+                  <span className="text-sm text-muted">No telemetry apps yet</span>
+              )}
             </div>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger className="rounded-md border border-line p-2 hover:bg-line" aria-label="Menu"><Menu size={18} /></DropdownMenu.Trigger>

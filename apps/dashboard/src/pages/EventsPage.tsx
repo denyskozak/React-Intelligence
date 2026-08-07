@@ -48,7 +48,7 @@ export function EventsPage({ appId }: { appId: string }) {
     const next = new URLSearchParams(searchParams);
 
     if (next.get("type") === "all") next.delete("type");
-    if (next.get("timeRange") === "all") next.delete("timeRange");
+    if (next.get("timeRange") === "24h") next.delete("timeRange");
 
     return next;
   }, [searchParams]);
