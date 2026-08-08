@@ -3,75 +3,35 @@ import * as ScrollArea from "@radix-ui/react-scroll-area";
 import * as Tabs from "@radix-ui/react-tabs";
 import type { IntelligenceEvent } from "@react-intelligence/shared";
 import { X } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import { Badge, Card, ErrorState, Loading, SelectBox, } from "../components/ui";
 import { api } from "../lib/api";
 import { useAsync } from "./hooks";
+import {useEventFilters} from "./useEventFilters";
 
 export function EventsPage({ appId }: { appId: string }) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const type = searchParams.get("type") ?? "all";
-  const route = searchParams.get("route") ?? "";
-  const release = searchParams.get("release") ?? "";
-  const environment = searchParams.get("environment") ?? "";
-  const timeRange = searchParams.get("timeRange") ?? "24h";
-  const search = searchParams.get("search") ?? "";
-  const [searchInput, setSearchInput] = useState(search);
 
-  useEffect(() => {
-    setSearchInput(search);
-  }, [search]);
+  const {
+    values,
+    searchInput,
+    setSearchInput,
+    update,
+    reset,
+    apiParams
+  } = useEventFilters();
 
-  useEffect(() => {
-    if (searchInput === search) return;
+  const { type, route, release, environment, timeRange } = values;
 
-    const timeout = window.setTimeout(() => {
-      setSearchParams((current) => {
-        const next = new URLSearchParams(current);
+  const { data, loading, error } = useAsync(
+      () => api.events(appId, apiParams),
+      [appId, apiParams.toString()]
+  );
 
-        if (searchInput) {
-          next.set("search", searchInput);
-        } else {
-          next.delete("search");
-        }
-
-        return next;
-      });
-    }, 300);
-
-    return () => window.clearTimeout(timeout);
-  }, [searchInput, search, setSearchParams]);
-
-
-  const params = useMemo(() => {
-    const next = new URLSearchParams(searchParams);
-
-    if (next.get("type") === "all") next.delete("type");
-    if (next.get("timeRange") === "24h") next.delete("timeRange");
-
-    return next;
-  }, [searchParams]);
-
-  const { data, loading, error } = useAsync(() => api.events(appId, params), [appId, params.toString()]);
   const [selected, setSelected] = useState<IntelligenceEvent | null>(null);
   if (loading && !data) return <Loading />;
   if (error) return <ErrorState error={error} />;
 
-  function updateFilter(key: string, value: string) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
 
-      if (!value || value === "all") {
-        next.delete(key);
-      } else {
-        next.set(key, value);
-      }
-
-      return next;
-
-    });
-  }
   return (
     <div className="space-y-6">
       <div>
@@ -80,13 +40,13 @@ export function EventsPage({ appId }: { appId: string }) {
       </div>
       <Card>
         <div className="flex gap-3">
-          <SelectBox value={type} onValueChange={(nextType) => updateFilter("type", nextType)} items={["all", "error", "react_error", "performance", "react_profiler", "network", "console", "user_action", "route_change", "custom"]} />
+          <SelectBox value={type} onValueChange={(nextType) => update("type", nextType)} items={["all", "error", "react_error", "performance", "react_profiler", "network", "console", "user_action", "route_change", "custom"]} />
           <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search route, session or payload" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
-          <input value={route} onChange={(event) => updateFilter("route", event.target.value)} placeholder="route" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
-          <input value={release} onChange={(event) => updateFilter("release", event.target.value)} placeholder="release" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
-          <input value={environment} onChange={(event) => updateFilter("environment", event.target.value)} placeholder="environment" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
-          <SelectBox value={timeRange} onValueChange={(nextTimeRange) => updateFilter("timeRange", nextTimeRange)} items={["1h", "24h", "7d", "30d", "all"]}/>
-          <button onClick={() => setSearchParams({})}>
+          <input value={route} onChange={(event) => update("route", event.target.value)} placeholder="route" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <input value={release} onChange={(event) => update("release", event.target.value)} placeholder="release" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <input value={environment} onChange={(event) => update("environment", event.target.value)} placeholder="environment" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <SelectBox value={timeRange} onValueChange={(nextTimeRange) => update("timeRange", nextTimeRange)} items={["1h", "24h", "7d", "30d", "all"]}/>
+          <button onClick={reset}>
             Reset
           </button>
         </div>

@@ -186,7 +186,7 @@ export function groupedErrors(appId: string) {
   return [...groups.values()].map((group) => ({ ...group, routes: [...group.routes] })).sort((a, b) => b.count - a.count);
 }
 
-export function recordAnalysis(appId: string, question: string, model: string, timeRange?: string, response: unknown) {
+export function recordAnalysis(appId: string, question: string, model: string, timeRange: string, response: unknown) {
   db.prepare("INSERT INTO analysis_runs (id, appId, question, model, timeRange, response, createdAt) VALUES (@id, @appId, @question, @model, @timeRange, @response, @createdAt)").run({
     id: crypto.randomUUID(),
     appId,
