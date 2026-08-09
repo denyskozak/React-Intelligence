@@ -15,7 +15,7 @@ export function EventsPage({ appId }: { appId: string }) {
     values,
     searchInput,
     setSearchInput,
-    update,
+    setFilter,
     reset,
     apiParams
   } = useEventFilters();
@@ -40,12 +40,12 @@ export function EventsPage({ appId }: { appId: string }) {
       </div>
       <Card>
         <div className="flex gap-3">
-          <SelectBox value={type} onValueChange={(nextType) => update("type", nextType)} items={["all", "error", "react_error", "performance", "react_profiler", "network", "console", "user_action", "route_change", "custom"]} />
+          <SelectBox value={type} onValueChange={(nextType) => setFilter("type", nextType)} items={["all", "error", "react_error", "performance", "react_profiler", "network", "console", "user_action", "route_change", "custom"]} />
           <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search route, session or payload" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
-          <input value={route} onChange={(event) => update("route", event.target.value)} placeholder="route" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
-          <input value={release} onChange={(event) => update("release", event.target.value)} placeholder="release" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
-          <input value={environment} onChange={(event) => update("environment", event.target.value)} placeholder="environment" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
-          <SelectBox value={timeRange} onValueChange={(nextTimeRange) => update("timeRange", nextTimeRange)} items={["1h", "24h", "7d", "30d", "all"]}/>
+          <input value={route} onChange={(event) => setFilter("route", event.target.value)} placeholder="route" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <input value={release} onChange={(event) => setFilter("release", event.target.value)} placeholder="release" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <input value={environment} onChange={(event) => setFilter("environment", event.target.value)} placeholder="environment" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <SelectBox value={timeRange} onValueChange={(nextTimeRange) => setFilter("timeRange", nextTimeRange)} items={["1h", "24h", "7d", "30d", "all"]}/>
           <button onClick={reset}>
             Reset
           </button>

@@ -17,25 +17,37 @@ const DEFAULTS: EventFilterValues = {
     environment: "",
     timeRange: "24h",
     search: "",
-} as const;
+};
 
 type EventFilterKey = keyof EventFilterValues;
 
+function isEmptyOrDefault(key: EventFilterKey, value: string) {
+    return value === "" || value === DEFAULTS[key];
+}
+
 export function useEventFilters () {
     const [params, setParams] = useSearchParams();
-    const values: EventFilterValues = useMemo(() => ({
-        ...DEFAULTS,
-        ...Object.fromEntries(params)
-    }), [params]);
 
-    const [searchInput, setSearchInput] = useState(values.search);
 
-    const update = useCallback((key: EventFilterKey, value: string) => {
+    const type = params.get("type") ?? DEFAULTS.type;
+    const route = params.get("route") ?? DEFAULTS.route;
+    const release = params.get("release") ?? DEFAULTS.release;
+    const environment = params.get("environment") ?? DEFAULTS.environment;
+    const timeRange = params.get("timeRange") ?? DEFAULTS.timeRange;
+    const search = params.get("search") ?? DEFAULTS.search;
+
+    const values: EventFilterValues = useMemo(
+        () => ({ type, route, release, environment, timeRange, search }),
+        [type, route, release, environment, timeRange, search]
+    );
+
+    const [searchInput, setSearchInput] = useState(search);
+
+    const setFilter = useCallback((key: EventFilterKey, value: string) => {
         setParams((current) => {
             const next = new URLSearchParams(current);
-            const defaultValue = DEFAULTS[key];
 
-            if (!value || value === defaultValue) {
+            if (isEmptyOrDefault(key, value)) {
                 next.delete(key);
             } else {
                 next.set(key, value);
@@ -46,38 +58,47 @@ export function useEventFilters () {
     }, [setParams]);
 
     useEffect(() => {
-        setSearchInput(values.search);
-    }, [values.search]);
+        setSearchInput(search);
+    }, [search]);
 
 
     useEffect(() => {
-        if (searchInput === values.search) return;
+        if (searchInput === search) return;
 
         const timeout = window.setTimeout(() => {
-            update("search", searchInput);
+            setFilter("search", searchInput);
         }, 300);
 
         return () => window.clearTimeout(timeout);
-    }, [searchInput, values.search, update]);
+    }, [searchInput, search, setFilter]);
 
-    function reset() {
+    const reset = useCallback(() => {
         setParams({})
-    }
+    }, [setParams])
 
     const apiParams = useMemo(() => {
         const next = new URLSearchParams(params);
+        const filters: Array<[EventFilterKey, string]> = [
+            ["type", type],
+            ["route", route],
+            ["release", release],
+            ["environment", environment],
+            ["timeRange", timeRange],
+            ["search", search],
+        ];
 
-        if (next.get("type") === DEFAULTS.type) next.delete("type");
-        if (next.get("timeRange") === DEFAULTS.timeRange) next.delete("timeRange");
+        filters.forEach(([key, value]) => {
+            if (!isEmptyOrDefault(key, value)) next.set(key, value);
+        });
 
         return next;
-    }, [params]);
+    }, [type, route, release, environment, timeRange, search]);
 
     return {
         values,
         searchInput,
         setSearchInput,
-        update,
+        setFilter,
         reset,
         apiParams
     }
