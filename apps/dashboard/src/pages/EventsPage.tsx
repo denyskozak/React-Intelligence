@@ -3,24 +3,34 @@ import * as ScrollArea from "@radix-ui/react-scroll-area";
 import * as Tabs from "@radix-ui/react-tabs";
 import type { IntelligenceEvent } from "@react-intelligence/shared";
 import { X } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Badge, Card, ErrorState, Loading, SelectBox } from "../components/ui";
+import { useState } from "react";
+import { Badge, Card, ErrorState, Loading, SelectBox, } from "../components/ui";
 import { api } from "../lib/api";
 import { useAsync } from "./hooks";
+import {useEventFilters} from "./useEventFilters";
 
 export function EventsPage({ appId }: { appId: string }) {
-  const [type, setType] = useState("all");
-  const [search, setSearch] = useState("");
-  const params = useMemo(() => {
-    const next = new URLSearchParams();
-    if (type !== "all") next.set("type", type);
-    if (search) next.set("search", search);
-    return next;
-  }, [type, search]);
-  const { data, loading, error } = useAsync(() => api.events(appId, params), [appId, params.toString()]);
+
+  const {
+    values,
+    searchInput,
+    setSearchInput,
+    setFilter,
+    reset,
+    apiParams
+  } = useEventFilters();
+
+  const { type, route, release, environment, timeRange } = values;
+
+  const { data, loading, error } = useAsync(
+      () => api.events(appId, apiParams),
+      [appId, apiParams.toString()]
+  );
+
   const [selected, setSelected] = useState<IntelligenceEvent | null>(null);
-  if (loading) return <Loading />;
+  if (loading && !data) return <Loading />;
   if (error) return <ErrorState error={error} />;
+
 
   return (
     <div className="space-y-6">
@@ -30,8 +40,15 @@ export function EventsPage({ appId }: { appId: string }) {
       </div>
       <Card>
         <div className="flex gap-3">
-          <SelectBox value={type} onValueChange={setType} items={["all", "error", "react_error", "performance", "react_profiler", "network", "console", "user_action", "route_change", "custom"]} />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search route, session or payload" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <SelectBox value={type} onValueChange={(nextType) => setFilter("type", nextType)} items={["all", "error", "react_error", "performance", "react_profiler", "network", "console", "user_action", "route_change", "custom"]} />
+          <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search route, session or payload" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <input value={route} onChange={(event) => setFilter("route", event.target.value)} placeholder="route" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <input value={release} onChange={(event) => setFilter("release", event.target.value)} placeholder="release" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <input value={environment} onChange={(event) => setFilter("environment", event.target.value)} placeholder="environment" className="h-10 flex-1 rounded-md border border-line bg-ink px-3 text-sm outline-none focus:border-accent" />
+          <SelectBox value={timeRange} onValueChange={(nextTimeRange) => setFilter("timeRange", nextTimeRange)} items={["1h", "24h", "7d", "30d", "all"]}/>
+          <button onClick={reset}>
+            Reset
+          </button>
         </div>
       </Card>
       <Tabs.Root defaultValue="table">
@@ -90,3 +107,4 @@ function PayloadDialog({ event, onOpenChange }: { event: IntelligenceEvent | nul
 function summary(event: IntelligenceEvent) {
   return String(event.payload.message ?? event.payload.url ?? event.payload.name ?? event.payload.action ?? event.payload.kind ?? event.type);
 }
+

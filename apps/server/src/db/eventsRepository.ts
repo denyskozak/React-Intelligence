@@ -7,6 +7,7 @@ export interface EventFilters {
   release?: string;
   environment?: string;
   search?: string;
+  timeRange?:string;
   limit?: number;
 }
 
@@ -63,10 +64,26 @@ export function listEvents(appId: string, filters: EventFilters = {}): Intellige
     clauses.push("(payload LIKE @search OR route LIKE @search OR sessionId LIKE @search)");
     params.search = `%${filters.search}%`;
   }
+
+  const since = sinceForTimeRange(filters.timeRange);
+
+  if (since) {
+    clauses.push("timestamp >= @since")
+    params.since = since;
+  }
   return db
     .prepare(`SELECT * FROM events WHERE ${clauses.join(" AND ")} ORDER BY timestamp DESC LIMIT @limit`)
     .all(params)
     .map(rowToEvent);
+}
+
+function sinceForTimeRange(timeRange?: string) {
+  if (!timeRange || timeRange === "24h") return new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  if (timeRange === "1h") return new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  if (timeRange === "7d") return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  if (timeRange === "30d") return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  if (timeRange === "all") return undefined;
+  return undefined;
 }
 
 export function getRecentEvents(appId: string, limit = 500): IntelligenceEvent[] {
