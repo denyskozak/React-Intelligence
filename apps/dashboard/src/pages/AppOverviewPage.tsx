@@ -15,11 +15,11 @@ export function AppOverviewPage({ appId }: { appId: string }) {
           <h1 className="text-2xl font-semibold">{appId}</h1>
           <p className="mt-1 text-sm text-muted">App overview, routes, errors and latency.</p>
         </div>
-        <Badge tone={data.errorRate > 0.05 ? "bad" : "good"}>{Math.round(data.errorRate * 100)}% error rate</Badge>
+        <Badge tone={data.errorRate > 0.05 ? "bad" : "good"}>{Math.round(data.errorRate * 100)}% error rate · {data.timeRange}</Badge>
       </div>
       <div className="grid grid-cols-4 gap-4">
-        <MetricCard label="Events" value={data.app.totalEvents} />
-        <MetricCard label="Sessions" value={data.app.totalSessions} />
+        <MetricCard label={`Events · ${data.timeRange}`} value={data.windowEvents} detail={`${data.app.totalEvents} all-time`} />
+        <MetricCard label={`Sessions · ${data.timeRange}`} value={data.windowSessions} detail={`${data.app.totalSessions} all-time`} />
         <MetricCard label="p95 render" value={`${data.p95ReactRenderDuration}ms`} />
         <MetricCard label="p95 fetch" value={`${data.p95FetchDuration}ms`} detail={`avg ${data.averageFetchDuration}ms`} />
       </div>

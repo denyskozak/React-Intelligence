@@ -9,7 +9,7 @@ export function PerformancePage({ appId }: { appId: string }) {
   if (error) return <ErrorState error={error} />;
   const commits = (data?.slowestReactCommits as Array<{ id: string; route?: string; duration: number; payload: Record<string, unknown> }>) ?? [];
   const routes = (data?.slowestRoutes as Array<{ label: string; value: number }>) ?? [];
-  const vitals = (data?.webVitals as Array<{ id: string; payload: Record<string, unknown>; route?: string }>) ?? [];
+  const entries = (data?.performanceEntries as Array<{ id: string; payload: Record<string, unknown>; route?: string }>) ?? [];
   const avg = commits.length ? Math.round(commits.reduce((sum, item) => sum + item.duration, 0) / commits.length) : 0;
   return (
     <div className="space-y-6">
@@ -20,7 +20,7 @@ export function PerformancePage({ appId }: { appId: string }) {
       <div className="grid grid-cols-3 gap-4">
         <MetricCard label="p95 actualDuration" value={`${String(data?.p95ReactRenderDuration ?? 0)}ms`} />
         <MetricCard label="Average slow commit" value={`${avg}ms`} />
-        <MetricCard label="Web vital events" value={vitals.length} />
+        <MetricCard label="Browser timing entries" value={entries.length} />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <Card className="h-80">
@@ -30,15 +30,15 @@ export function PerformancePage({ appId }: { appId: string }) {
           </ResponsiveContainer>
         </Card>
         <Card>
-          <h2 className="mb-4 font-semibold">Web Vitals & Browser Timing</h2>
+          <h2 className="mb-4 font-semibold">Browser Performance Entries</h2>
           <div className="space-y-2">
-            {vitals.slice(0, 8).map((event) => (
+            {entries.slice(0, 8).map((event) => (
               <div key={event.id} className="rounded bg-ink p-3 text-sm">
                 <span className="font-medium">{String(event.payload.kind)}</span>
                 <span className="ml-2 text-muted">{String(event.payload.duration ?? event.payload.load ?? "-")}ms · {event.route}</span>
               </div>
             ))}
-            {!vitals.length && <p className="text-sm text-muted">No performance entries yet.</p>}
+            {!entries.length && <p className="text-sm text-muted">No performance entries yet.</p>}
           </div>
         </Card>
       </div>

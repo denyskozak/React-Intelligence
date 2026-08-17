@@ -1,3 +1,3 @@
-export { ReactIntelligenceProvider } from "./provider";
-export { track, configureReactIntelligence } from "./runtime";
-export type { ReactIntelligenceOptions, ReactIntelligenceProviderProps } from "./types";
+export { IntelligenceProfiler, ReactIntelligenceErrorBoundary, ReactIntelligenceProvider } from "./provider";
+export { cleanupReactIntelligence, configureReactIntelligence, flushReactIntelligence, track } from "./runtime";
+export type { IntelligenceProfilerProps, ReactIntelligenceOptions, ReactIntelligenceProviderProps } from "./types";

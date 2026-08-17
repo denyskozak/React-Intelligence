@@ -1,0 +1,19 @@
+FROM node:22-bookworm-slim AS build
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
+WORKDIR /workspace
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @react-intelligence/shared build && pnpm --filter @react-intelligence/server build
+RUN pnpm --filter @react-intelligence/server deploy --prod /runtime
+
+FROM node:22-bookworm-slim
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+WORKDIR /app
+RUN groupadd --system react-intelligence && useradd --system --gid react-intelligence --home-dir /app react-intelligence
+COPY --from=build --chown=react-intelligence:react-intelligence /runtime /app
+USER react-intelligence
+EXPOSE 4000
+CMD ["node", "dist/index.js"]

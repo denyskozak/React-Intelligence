@@ -1,20 +1,27 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Separator from "@radix-ui/react-separator";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { Activity, Bot, Gauge, Home, Menu, Network, Search, Siren, TableProperties } from "lucide-react";
-import type { ReactNode } from "react";
+import { Activity, Bell, Bot, Gauge, GitCompare, Home, Menu, Network, Plug, Search, Settings, Shield, Siren, TableProperties } from "lucide-react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Link, NavLink, Navigate, Route, Routes, matchPath, useLocation, useParams, useNavigate } from "react-router-dom";
-import { AnalyzePage } from "./pages/AnalyzePage";
-import { AppOverviewPage } from "./pages/AppOverviewPage";
-import { ErrorsPage } from "./pages/ErrorsPage";
-import { EventsPage } from "./pages/EventsPage";
-import { NetworkPage } from "./pages/NetworkPage";
 import { OverviewPage } from "./pages/OverviewPage";
-import { PerformancePage } from "./pages/PerformancePage";
+import type { DashboardIdentity } from "./AuthGate";
 
 import {useAsync} from "./pages/hooks";
 import { api } from "./lib/api"
 import { SelectBox, EmptyState, ErrorState, Loading} from "./components/ui";
+
+const AnalyzePage = lazy(() => import("./pages/AnalyzePage").then((module) => ({ default: module.AnalyzePage })));
+const AppOverviewPage = lazy(() => import("./pages/AppOverviewPage").then((module) => ({ default: module.AppOverviewPage })));
+const ErrorsPage = lazy(() => import("./pages/ErrorsPage").then((module) => ({ default: module.ErrorsPage })));
+const EventsPage = lazy(() => import("./pages/EventsPage").then((module) => ({ default: module.EventsPage })));
+const NetworkPage = lazy(() => import("./pages/NetworkPage").then((module) => ({ default: module.NetworkPage })));
+const PerformancePage = lazy(() => import("./pages/PerformancePage").then((module) => ({ default: module.PerformancePage })));
+const AlertsPage = lazy(() => import("./pages/AlertsPage").then((module) => ({ default: module.AlertsPage })));
+const ReleasesPage = lazy(() => import("./pages/ReleasesPage").then((module) => ({ default: module.ReleasesPage })));
+const SetupPage = lazy(() => import("./pages/SetupPage").then((module) => ({ default: module.SetupPage })));
+const AdminPage = lazy(() => import("./pages/AdminPage").then((module) => ({ default: module.AdminPage })));
+const ProjectSettingsPage = lazy(() => import("./pages/ProjectSettingsPage").then((module) => ({ default: module.ProjectSettingsPage })));
 
 const appNav = [
   { path: "", label: "App", icon: Activity, end: true },
@@ -22,10 +29,13 @@ const appNav = [
   { path: "/errors", label: "Errors", icon: Siren },
   { path: "/performance", label: "Performance", icon: Gauge },
   { path: "/network", label: "Network", icon: Network },
+  { path: "/releases", label: "Releases", icon: GitCompare },
+  { path: "/alerts", label: "Alerts", icon: Bell },
+  { path: "/settings", label: "Settings", icon: Settings },
   { path: "/analyze", label: "AI Analysis", icon: Bot }
 ];
 
-export function App() {
+export function App({ identity, onSignOut }: { identity: DashboardIdentity; onSignOut: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const appMatch = matchPath({ path: "/apps/:appId/*", end: false }, location.pathname);
@@ -55,7 +65,15 @@ export function App() {
               <Home size={16} />
               Overview
             </NavLink>
-            {appBase ? appNav.map((item) => {
+            {identity.role === "owner" ? <NavLink to="/setup" className={navClassName}>
+              <Plug size={16} />
+              Connect app
+            </NavLink> : null}
+            {identity.role === "owner" ? <NavLink to="/admin" className={navClassName}>
+              <Shield size={16} />
+              Access & audit
+            </NavLink> : null}
+            {appBase ? appNav.filter((item) => identity.role !== "viewer" || !["/settings", "/analyze"].includes(item.path)).map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink key={item.path || "app"} to={`${appBase}${item.path}`} end={item.end} className={navClassName}>
@@ -90,22 +108,27 @@ export function App() {
             <DropdownMenu.Root>
               <DropdownMenu.Trigger className="rounded-md border border-line p-2 hover:bg-line" aria-label="Menu"><Menu size={18} /></DropdownMenu.Trigger>
               <DropdownMenu.Content className="z-50 rounded-md border border-line bg-panel p-1 shadow-xl">
-                <DropdownMenu.Item className="rounded px-3 py-2 text-sm outline-none hover:bg-line">Server: localhost:4000</DropdownMenu.Item>
-                <DropdownMenu.Item className="rounded px-3 py-2 text-sm outline-none hover:bg-line">Model: llama3.1</DropdownMenu.Item>
+                <DropdownMenu.Label className="px-3 py-2 text-xs text-muted">{identity.actor} · {identity.role}</DropdownMenu.Label>
+                <DropdownMenu.Item onSelect={onSignOut} className="cursor-pointer rounded px-3 py-2 text-sm outline-none hover:bg-line">Sign out</DropdownMenu.Item>
               </DropdownMenu.Content>
             </DropdownMenu.Root>
           </header>
           <div className="p-6">
-            <Routes>
+            <Suspense fallback={<Loading />}><Routes>
               <Route path="/" element={<OverviewPage />} />
+              <Route path="/setup" element={identity.role === "owner" ? <SetupPage /> : <Navigate to="/" replace />} />
+              <Route path="/admin" element={identity.role === "owner" ? <AdminPage /> : <Navigate to="/" replace />} />
               <Route path="/apps/:appId" element={<AppPage>{(appId) => <AppOverviewPage appId={appId} />}</AppPage>} />
               <Route path="/apps/:appId/events" element={<AppPage>{(appId) => <EventsPage appId={appId} />}</AppPage>} />
               <Route path="/apps/:appId/errors" element={<AppPage>{(appId) => <ErrorsPage appId={appId} />}</AppPage>} />
               <Route path="/apps/:appId/performance" element={<AppPage>{(appId) => <PerformancePage appId={appId} />}</AppPage>} />
               <Route path="/apps/:appId/network" element={<AppPage>{(appId) => <NetworkPage appId={appId} />}</AppPage>} />
-              <Route path="/apps/:appId/analyze" element={<AppPage>{(appId) => <AnalyzePage appId={appId} />}</AppPage>} />
+              <Route path="/apps/:appId/releases" element={<AppPage>{(appId) => <ReleasesPage appId={appId} />}</AppPage>} />
+              <Route path="/apps/:appId/alerts" element={<AppPage>{(appId) => <AlertsPage appId={appId} canManage={identity.role !== "viewer"} />}</AppPage>} />
+              <Route path="/apps/:appId/settings" element={identity.role !== "viewer" ? <AppPage>{(appId) => <ProjectSettingsPage appId={appId} />}</AppPage> : <Navigate to="/" replace />} />
+              <Route path="/apps/:appId/analyze" element={identity.role !== "viewer" ? <AppPage>{(appId) => <AnalyzePage appId={appId} />}</AppPage> : <Navigate to="/" replace />} />
               <Route path="*" element={<NotFoundPage />} />
-            </Routes>
+            </Routes></Suspense>
           </div>
         </main>
       </div>
