@@ -17,13 +17,13 @@ export function AppOverviewPage({ appId }: { appId: string }) {
         </div>
         <Badge tone={data.errorRate > 0.05 ? "bad" : "good"}>{Math.round(data.errorRate * 100)}% error rate · {data.timeRange}</Badge>
       </div>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label={`Events · ${data.timeRange}`} value={data.windowEvents} detail={`${data.app.totalEvents} all-time`} />
         <MetricCard label={`Sessions · ${data.timeRange}`} value={data.windowSessions} detail={`${data.app.totalSessions} all-time`} />
         <MetricCard label="p95 render" value={`${data.p95ReactRenderDuration}ms`} />
         <MetricCard label="p95 fetch" value={`${data.p95FetchDuration}ms`} detail={`avg ${data.averageFetchDuration}ms`} />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card className="h-80">
           <h2 className="mb-4 font-semibold">Events Over Time</h2>
           <ResponsiveContainer width="100%" height="85%">
@@ -37,7 +37,7 @@ export function AppOverviewPage({ appId }: { appId: string }) {
           </ResponsiveContainer>
         </Card>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <ListCard title="Slowest Routes" rows={data.slowestRoutes} suffix="ms" />
         <ListCard title="Console Warnings" rows={data.mostFrequentConsoleWarnings} />
         <Card>

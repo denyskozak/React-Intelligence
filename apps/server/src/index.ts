@@ -33,7 +33,6 @@ import {
   ensureProject,
   evaluateAlerts,
   exportEvents,
-  filterUnseenEvents,
   getIngestionDiagnostics,
   listAlertIncidents,
   listAlertRules,
@@ -50,10 +49,8 @@ import {
   listErrorIssues,
   overview,
   recordAudit,
-  recordIngestion,
   recordAnalysis,
   runRetention,
-  saveEvents,
   saveSourceMap,
   setRetention,
   setMonthlyEventQuota,
@@ -62,10 +59,10 @@ import {
   revokeProjectKey
 } from "./db/eventsRepository.js";
 import { analyzeWithOllama, getOllamaStatus } from "./services/ollamaService.js";
-import { scrubPayload } from "./services/privacyService.js";
 import { symbolicateEvents } from "./services/sourceMapService.js";
 import { deliverPendingWebhooks, queueAlertWebhooks, validateWebhookUrl } from "./services/webhookService.js";
 import { collectOperationalMetrics, prometheusMetrics, recordIngestionMetrics, recordRequest, resetOperationalMetrics } from "./services/metricsService.js";
+import { ingestEventBatch } from "./services/ingestionService.js";
 
 export async function buildApp(config: ServerConfig = loadConfig()): Promise<FastifyInstance> {
   const app = Fastify({ logger: true, bodyLimit: 1_500_000 });
@@ -87,6 +84,9 @@ export async function buildApp(config: ServerConfig = loadConfig()): Promise<Fas
     timeWindow: "1 minute",
     keyGenerator: (request) => rateLimitKey(request)
   });
+  app.addHook("onRequest", async (request, reply) => {
+    reply.header("x-request-id", request.id);
+  });
   app.addHook("onResponse", async (_request, reply) => { recordRequest(reply.statusCode); });
 
   app.get("/health", async () => ({ ok: true, deploymentMode: config.deploymentMode }));
@@ -97,9 +97,9 @@ export async function buildApp(config: ServerConfig = loadConfig()): Promise<Fas
   });
   app.get("/ready", async (_request, reply) => {
     try {
-      const integrity = db.prepare("PRAGMA quick_check").get() as { quick_check: string };
+      const reachable = db.prepare("SELECT 1 AS ok").get() as { ok: number };
       const migration = db.prepare("SELECT MAX(version) AS version FROM schema_migrations").get() as { version: number };
-      if (integrity.quick_check !== "ok") throw new Error(integrity.quick_check);
+      if (reachable.ok !== 1) throw new Error("Database did not answer readiness probe");
       return { ready: true, database: "ok", schemaVersion: Number(migration.version) };
     } catch (error) {
       return reply.status(503).send({ ready: false, error: error instanceof Error ? error.message : "Database unavailable" });
@@ -112,6 +112,19 @@ export async function buildApp(config: ServerConfig = loadConfig()): Promise<Fas
     return reply.type("text/plain; version=0.0.4").send(prometheusMetrics());
   });
 
+  app.get("/api/operations/integrity", async (request, reply) => {
+    if (!requireOwner(request, reply, config)) return;
+    const startedAt = performance.now();
+    const result = db.prepare("PRAGMA quick_check").get() as { quick_check: string };
+    const ok = result.quick_check === "ok";
+    return reply.status(ok ? 200 : 503).send({
+      ok,
+      result: result.quick_check,
+      durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
+      checkedAt: new Date().toISOString()
+    });
+  });
+
   app.post("/api/events/batch", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (request, reply) => {
     const parsed = batchEventsRequestSchema.safeParse(request.body);
     if (!parsed.success) return badRequest(reply, "Invalid event batch", parsed.error.flatten());
@@ -120,35 +133,17 @@ export async function buildApp(config: ServerConfig = loadConfig()): Promise<Fas
     if (authorizedAppId !== "*" && parsed.data.events.some((event) => event.appId !== authorizedAppId)) {
       return reply.status(403).send({ error: "Write key does not belong to this project" });
     }
-    const serializedBytes = Buffer.byteLength(JSON.stringify(request.body));
-    const unseenByApp = new Map<string, IntelligenceEvent[]>();
-    for (const [appId, appEvents] of groupEventsByApp(parsed.data.events)) {
-      const unseenEvents = filterUnseenEvents(appEvents);
-      unseenByApp.set(appId, unseenEvents);
-      const diagnostics = getIngestionDiagnostics(appId);
-      if (diagnostics && diagnostics.remainingEvents < unseenEvents.length) {
-        const duplicates = appEvents.length - unseenEvents.length;
-        recordIngestion(appId, 0, unseenEvents.length, serializedBytes, duplicates);
-        recordIngestionMetrics({ accepted: 0, duplicates, rejected: unseenEvents.length });
-        return reply.header("retry-after", "3600").status(429).send({ error: "Monthly event quota exceeded", diagnostics });
-      }
+    const result = ingestEventBatch(parsed.data.events);
+    if (result.quotaExceeded) {
+      recordIngestionMetrics(result);
+      return reply.header("retry-after", "3600").status(429).send({
+        error: "Monthly event quota exceeded",
+        diagnostics: result.quotaExceeded.diagnostics
+      });
     }
-    let accepted = 0;
-    let duplicates = 0;
-    for (const [appId, appEvents] of groupEventsByApp(parsed.data.events)) {
-      const events = (unseenByApp.get(appId) ?? []).map((event) => ({
-        ...event,
-        payload: scrubPayload(event.payload) as Record<string, unknown>
-      }));
-      const result = saveEvents(events);
-      const appDuplicates = appEvents.length - result.accepted;
-      accepted += result.accepted;
-      duplicates += appDuplicates;
-      recordIngestion(appId, result.accepted, 0, serializedBytes, appDuplicates);
-      if (result.accepted) queueAlertWebhooks(evaluateAlerts(appId), config);
-    }
-    recordIngestionMetrics({ accepted, duplicates, rejected: 0 });
-    return { accepted, duplicates };
+    for (const appId of result.acceptedAppIds) queueAlertWebhooks(evaluateAlerts(appId), config);
+    recordIngestionMetrics(result);
+    return { accepted: result.accepted, duplicates: result.duplicates };
   });
 
   app.get("/api/projects", async (request, reply) => {
@@ -272,7 +267,13 @@ export async function buildApp(config: ServerConfig = loadConfig()): Promise<Fas
     const parsed = eventFiltersSchema.safeParse(request.query);
     if (!parsed.success) return badRequest(reply, "Invalid event filters", parsed.error.flatten());
     const events = symbolicateEvents(appId, listEvents(appId, parsed.data));
-    return { events, nextCursor: events.length === parsed.data.limit ? events.at(-1)?.timestamp : undefined };
+    const last = events.at(-1);
+    return {
+      events,
+      nextCursor: events.length === parsed.data.limit && last
+        ? { timestamp: last.timestamp, id: last.id }
+        : undefined
+    };
   });
 
   app.get("/api/apps/:appId/errors", async (request, reply) => {
@@ -502,12 +503,6 @@ function rateLimitKey(request: FastifyRequest) {
   const authorization = request.headers.authorization;
   if (authorization?.startsWith("Bearer ")) return `credential:${hashWriteKey(authorization.slice(7))}`;
   return `ip:${request.ip}`;
-}
-
-function groupEventsByApp(events: IntelligenceEvent[]) {
-  const groups = new Map<string, IntelligenceEvent[]>();
-  for (const event of events) groups.set(event.appId, [...(groups.get(event.appId) ?? []), event]);
-  return groups;
 }
 
 function appIdFrom(request: FastifyRequest) {

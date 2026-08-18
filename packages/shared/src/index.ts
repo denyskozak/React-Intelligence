@@ -261,7 +261,8 @@ export const eventFiltersSchema = z.object({
   search: z.string().max(256).optional(),
   timeRange: timeRangeSchema.default("24h"),
   limit: z.coerce.number().int().min(1).max(500).default(200),
-  cursor: z.string().datetime().optional()
+  cursor: z.string().datetime().optional(),
+  cursorId: z.string().uuid().optional()
 });
 
 export const sourceMapUploadSchema = z.object({

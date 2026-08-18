@@ -18,7 +18,7 @@ export function ErrorsPage({ appId }: { appId: string }) {
         <h1 className="text-2xl font-semibold">Errors</h1>
         <p className="mt-1 text-sm text-muted">Stable error fingerprints with an open, resolved, or ignored triage workflow.</p>
       </div>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Open issues" value={allIssues.filter((issue) => issue.status === "open").length} />
         <MetricCard label="Resolved" value={allIssues.filter((issue) => issue.status === "resolved").length} />
         <MetricCard label="Error events" value={data?.events.length ?? 0} />

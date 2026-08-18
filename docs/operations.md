@@ -38,7 +38,8 @@ Application rollback is safe only when the older version understands the latest 
 ## Health and metrics
 
 - `GET /health` confirms the process is serving requests.
-- `GET /ready` runs SQLite `quick_check` and reports the applied schema version. Remove an instance from service on HTTP 503.
+- `GET /ready` performs a lightweight database query and reports the applied schema version. Remove an instance from service on HTTP 503.
+- `GET /api/operations/integrity` requires an owner token and runs SQLite `quick_check`; use it after restore/upgrade or from a low-frequency maintenance job, not as a frequent readiness probe.
 - `GET /metrics` requires an owner bearer token and returns Prometheus text. Send `Accept: application/json` for the dashboard/operator JSON view.
 
 Useful alerts for the single-node MVP are readiness failures, sustained `5xx` responses, ingestion rejections, failed webhook deliveries, disk growth, and a quota with less than 10% remaining. Metrics are process-local except database counts; they reset after restart.

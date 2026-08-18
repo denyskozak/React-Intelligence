@@ -49,9 +49,12 @@ Both modes use the same SDK and HTTP contract:
 - SQLite schema changes are numbered and transactional; verified backup/restore and an upgrade runbook are available.
 - Scrubbed SDK events survive short offline periods and flush on reconnect without breaking the host application.
 - Retried batches are idempotent by event ID and duplicates neither inflate analytics nor consume quota.
+- Ingestion preparation, deduplication, quota enforcement, persistence, and usage accounting are committed atomically on the supported single-node database.
 - Errors have stable fingerprints and an audited open/resolved/ignored workflow that reopens on recurrence.
-- Readiness verifies SQLite integrity and schema version; owner-only Prometheus/JSON metrics expose operational health.
+- Event history uses stable composite keyset pagination and indexed project/filter access paths.
+- Readiness performs a cheap database/schema probe; explicit owner-only integrity checks and Prometheus/JSON metrics expose deeper operational health.
 - CI exercises a real React provider through the SDK, HTTP ingestion, and SQLite persistence.
 - Dashboard credentials are entered at runtime, scoped by role, kept only for the browser-tab session, and absent from production JavaScript assets.
+- Dashboard routes recover from render failures and remain usable on a 390 px mobile viewport, with wide data tables contained in local scrollers.
 - Public/cloud startup fails closed for disabled auth, development secrets, and wildcard CORS.
 - The published SDK artifact and minimal deployed server runtime are smoke-tested independently from the monorepo.

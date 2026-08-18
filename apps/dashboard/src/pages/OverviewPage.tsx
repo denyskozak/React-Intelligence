@@ -15,13 +15,13 @@ export function OverviewPage() {
         <h1 className="text-2xl font-semibold">Overview</h1>
         <p className="mt-1 text-sm text-muted">All React apps reporting runtime telemetry.</p>
       </div>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Apps" value={data.totalApps} />
         <MetricCard label="Events" value={data.totalEvents} />
         <MetricCard label="Errors" value={data.totalErrors} />
         <MetricCard label="Sessions" value={data.totalSessions} />
       </div>
-      <div className="grid grid-cols-[1.2fr_0.8fr] gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <Card>
           <h2 className="mb-4 font-semibold">Recent Apps</h2>
           <div className="space-y-2">

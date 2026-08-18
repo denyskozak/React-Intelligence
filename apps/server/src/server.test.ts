@@ -49,6 +49,7 @@ test("ingestion and reads enforce project-scoped credentials", async (context) =
   assert.equal(identity.statusCode, 200);
   assert.equal(identity.json().role, "owner");
   assert.equal(identity.json().appIds, "all");
+  assert.ok(identity.headers["x-request-id"]);
   const anonymousIdentity = await app.inject({ method: "GET", url: "/api/auth/me" });
   assert.equal(anonymousIdentity.statusCode, 401);
 
@@ -90,6 +91,40 @@ test("ingestion and reads enforce project-scoped credentials", async (context) =
   assert.equal(appOverview.statusCode, 200);
   assert.equal(appOverview.json().windowEvents, 1);
   assert.equal(appOverview.json().timeRange, "all");
+
+  const sharedTimestamp = new Date(Date.now() + 10).toISOString();
+  const sameTimestampEvents = [
+    { ...event, id: "00000000-0000-4000-8000-000000000001", timestamp: sharedTimestamp },
+    { ...event, id: "00000000-0000-4000-8000-000000000002", timestamp: sharedTimestamp }
+  ];
+  const sameTimestampIngestion = await app.inject({
+    method: "POST", url: "/api/events/batch",
+    headers: { authorization: "Bearer app-one-write" }, payload: { events: sameTimestampEvents }
+  });
+  assert.equal(sameTimestampIngestion.statusCode, 200);
+  assert.equal(sameTimestampIngestion.json().accepted, 2);
+  const sameTimestampRead = await app.inject({
+    method: "GET", url: "/api/apps/app-one/events?timeRange=all&limit=10",
+    headers: { authorization: "Bearer app-one-reader" }
+  });
+  assert.deepEqual(
+    sameTimestampRead.json().events.filter((candidate: { timestamp: string }) => candidate.timestamp === sharedTimestamp).map((candidate: { id: string }) => candidate.id),
+    [sameTimestampEvents[1].id, sameTimestampEvents[0].id]
+  );
+  const firstPage = await app.inject({
+    method: "GET", url: "/api/apps/app-one/events?timeRange=all&limit=1",
+    headers: { authorization: "Bearer app-one-reader" }
+  });
+  const cursor = firstPage.json().nextCursor as { timestamp: string; id: string };
+  assert.equal(cursor.timestamp, sharedTimestamp);
+  assert.equal(cursor.id, sameTimestampEvents[1].id);
+  const secondPage = await app.inject({
+    method: "GET",
+    url: `/api/apps/app-one/events?timeRange=all&limit=1&cursor=${encodeURIComponent(cursor.timestamp)}&cursorId=${cursor.id}`,
+    headers: { authorization: "Bearer app-one-reader" }
+  });
+  assert.equal(secondPage.json().events[0].id, sameTimestampEvents[0].id);
+  assert.equal(secondPage.json().events[0].timestamp, sharedTimestamp);
 
   const createdProject = await app.inject({
     method: "POST", url: "/api/projects",
@@ -270,7 +305,12 @@ test("ingestion and reads enforce project-scoped credentials", async (context) =
 
   const ready = await app.inject({ method: "GET", url: "/ready" });
   assert.equal(ready.statusCode, 200);
-  assert.equal(ready.json().schemaVersion, 4);
+  assert.equal(ready.json().schemaVersion, 5);
+  const integrity = await app.inject({ method: "GET", url: "/api/operations/integrity", headers: { authorization: "Bearer dashboard-token" } });
+  assert.equal(integrity.statusCode, 200);
+  assert.equal(integrity.json().result, "ok");
+  const anonymousIntegrity = await app.inject({ method: "GET", url: "/api/operations/integrity" });
+  assert.equal(anonymousIntegrity.statusCode, 401);
   const metrics = await app.inject({ method: "GET", url: "/metrics", headers: { authorization: "Bearer dashboard-token", accept: "application/json" } });
   assert.equal(metrics.statusCode, 200);
   assert.ok(metrics.json().requestsTotal > 0);

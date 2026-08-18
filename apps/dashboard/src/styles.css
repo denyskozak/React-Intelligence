@@ -20,6 +20,24 @@ button, input, textarea, select {
   font: inherit;
 }
 
+button:not(:disabled), a, [role="button"] {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid #5eead4;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .card {
   border: 1px solid #202a3a;
   background: #10151f;

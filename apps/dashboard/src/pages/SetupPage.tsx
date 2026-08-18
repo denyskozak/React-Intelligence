@@ -36,7 +36,7 @@ export function SetupPage() {
       <div><h1 className="text-2xl font-semibold">Connect a React app</h1><p className="mt-1 text-sm text-muted">Create a project, copy the one-time write key, then wait for the first SDK event.</p></div>
       <Card>
         <h2 className="font-semibold">1. Create project</h2>
-        <div className="mt-4 grid grid-cols-[1fr_1fr_auto] gap-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr_auto]">
           <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Checkout UI" className="rounded-md border border-line bg-ink px-3 text-sm" />
           <input value={appId} onChange={(event) => setAppId(event.target.value)} placeholder="checkout-ui" className="rounded-md border border-line bg-ink px-3 text-sm" />
           <button onClick={createProject} disabled={!name.trim() || !appId.trim()} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50">Create</button>

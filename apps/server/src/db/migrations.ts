@@ -119,6 +119,16 @@ const migrations: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_error_issues_app_status ON error_issues(appId, status, lastSeen DESC);
       `);
     }
+  },
+  {
+    version: 5,
+    name: "scalable event query indexes",
+    up: (db) => db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_events_app_time_id ON events(appId, timestamp DESC, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_events_app_release_time ON events(appId, release, timestamp DESC);
+      CREATE INDEX IF NOT EXISTS idx_events_app_environment_time ON events(appId, environment, timestamp DESC);
+      CREATE INDEX IF NOT EXISTS idx_events_app_session_time ON events(appId, sessionId, timestamp DESC);
+    `)
   }
 ];
 

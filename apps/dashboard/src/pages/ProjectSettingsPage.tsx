@@ -20,7 +20,7 @@ export function ProjectSettingsPage({ appId }: { appId: string }) {
 
   return <div className="space-y-6">
     <div><h1 className="text-2xl font-semibold">Project settings</h1><p className="mt-1 text-sm text-muted">Manage ingestion capacity and revocable SDK credentials for {appId}.</p></div>
-    <div className="grid grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <MetricCard label={`Accepted · ${data.ingestion.month}`} value={data.ingestion.acceptedEvents} detail={`${usagePercent}% of quota`} />
       <MetricCard label="Remaining" value={data.ingestion.remainingEvents} />
       <MetricCard label="Rejected" value={data.ingestion.rejectedEvents} />

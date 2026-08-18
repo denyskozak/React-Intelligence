@@ -51,7 +51,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       clearDashboardToken();
       window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
     }
-    throw new Error(await response.text());
+    throw new Error(await responseError(response));
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -61,7 +61,10 @@ export const api = {
   me: () => request<{ actor: string; role: AccessRole; appIds: string[] | "all" }>("/api/auth/me"),
   overview: () => request<OverviewResponse>("/api/apps"),
   appOverview: (appId: string) => request<AppOverviewResponse>(`/api/apps/${appId}/overview`),
-  events: (appId: string, params = new URLSearchParams()) => request<{ events: IntelligenceEvent[] }>(`/api/apps/${appId}/events?${params.toString()}`),
+  events: (appId: string, params = new URLSearchParams()) => request<{
+    events: IntelligenceEvent[];
+    nextCursor?: { timestamp: string; id: string };
+  }>(`/api/apps/${appId}/events?${params.toString()}`),
   errors: (appId: string) => request<{ groups: Array<Record<string, unknown>>; issues: ErrorIssue[]; events: IntelligenceEvent[] }>(`/api/apps/${appId}/errors`),
   issues: (appId: string, status: ErrorIssueStatus | "all" = "open") => request<{ issues: ErrorIssue[] }>(`/api/apps/${appId}/issues?status=${status}`),
   updateIssue: (appId: string, issueId: string, status: ErrorIssueStatus) => request<{ issue: ErrorIssue }>(`/api/apps/${appId}/issues/${issueId}`, { method: "PATCH", body: JSON.stringify({ status }) }),
@@ -83,7 +86,7 @@ export const api = {
         sdkVersion: "dashboard-test", payload: { name: "connection_test", source: "onboarding" }
       }] })
     });
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) throw new Error(await responseError(response));
     return response.json() as Promise<{ accepted: number }>;
   },
   setRetention: (appId: string, retentionDays: number) => request<{ retentionDays: number; deleted: number }>(`/api/projects/${appId}/retention`, { method: "PATCH", body: JSON.stringify({ retentionDays }) }),
@@ -95,7 +98,7 @@ export const api = {
   deleteProjectData: (appId: string) => request<{ deleted: Record<string, number> }>(`/api/projects/${appId}/data`, { method: "DELETE", headers: { "x-confirm-app-id": appId } }),
   downloadExport: async (appId: string, format: "json" | "csv") => {
     const response = await fetch(`${API_URL}/api/projects/${encodeURIComponent(appId)}/export?format=${format}`, { headers: { authorization: `Bearer ${getDashboardToken()}` } });
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) throw new Error(await responseError(response));
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -113,5 +116,17 @@ export const api = {
   createAccessToken: (body: { name: string; role: AccessRole; appIds: string[] }) => request<{ token: AccessTokenSummary; value: string }>("/api/access-tokens", { method: "POST", body: JSON.stringify(body) }),
   revokeAccessToken: (tokenId: string) => request<void>(`/api/access-tokens/${tokenId}`, { method: "DELETE" }),
   auditLog: () => request<{ entries: AuditEntry[] }>("/api/audit-log"),
-  metrics: () => request<OperationalMetrics>("/metrics", { headers: { accept: "application/json" } })
+  metrics: () => request<OperationalMetrics>("/metrics", { headers: { accept: "application/json" } }),
+  integrity: () => request<{ ok: boolean; result: string; durationMs: number; checkedAt: string }>("/api/operations/integrity")
 };
+
+async function responseError(response: Response) {
+  const requestId = response.headers.get("x-request-id");
+  const raw = await response.text();
+  let message = raw || `Request failed with HTTP ${response.status}`;
+  try {
+    const parsed = JSON.parse(raw) as { error?: unknown };
+    if (typeof parsed.error === "string") message = parsed.error;
+  } catch { /* Non-JSON upstream response. */ }
+  return requestId ? `${message} · request ${requestId}` : message;
+}

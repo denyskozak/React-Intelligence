@@ -141,6 +141,8 @@ Browser and React errors are assigned a stable server-side fingerprint. The Erro
 
 Retried SDK batches are idempotent by event ID. Duplicate events do not consume the monthly quota and are shown separately in Project Settings.
 
+Event ingestion and its quota/accounting updates commit atomically on SQLite. Event history is ordered and paginated by the stable `(timestamp, id)` cursor, backed by composite indexes for the primary project and filter paths.
+
 ## Evidence-based AI
 
 AI requests send aggregated counts plus a relevance-ranked, bounded event sample. The model must return event IDs and affected routes for every finding. Responses are constrained by JSON Schema, validated again with Zod, and stored with confidence and limitations. The dashboard checks `/api/tags`, uses installed Ollama models, links evidence back to the Events Explorer, and displays analysis history.
@@ -150,6 +152,7 @@ AI requests send aggregated counts plus a relevance-ranked, bounded event sample
 - `GET /health` and `GET /ready`
 - `GET /api/auth/me`
 - `GET /metrics` (owner token; Prometheus text or JSON through `Accept: application/json`)
+- `GET /api/operations/integrity` (owner token; explicit SQLite integrity check)
 - `GET|POST /api/projects`
 - `GET /api/projects/:appId/connection`
 - `PATCH /api/projects/:appId/retention`

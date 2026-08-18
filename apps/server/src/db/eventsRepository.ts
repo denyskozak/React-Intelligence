@@ -24,6 +24,7 @@ export interface EventFilters {
   timeRange?: string;
   limit?: number;
   cursor?: string;
+  cursorId?: string;
 }
 
 const insertEvent = db.prepare(`
@@ -116,7 +117,11 @@ export function listEvents(appId: string, filters: EventFilters = {}): Intellige
     params.search = `%${filters.search}%`;
   }
 
-  if (filters.cursor) {
+  if (filters.cursor && filters.cursorId) {
+    clauses.push("(timestamp < @cursor OR (timestamp = @cursor AND id < @cursorId))");
+    params.cursor = filters.cursor;
+    params.cursorId = filters.cursorId;
+  } else if (filters.cursor) {
     clauses.push("timestamp < @cursor");
     params.cursor = filters.cursor;
   }
@@ -128,7 +133,7 @@ export function listEvents(appId: string, filters: EventFilters = {}): Intellige
     params.since = since;
   }
   return db
-    .prepare(`SELECT * FROM events WHERE ${clauses.join(" AND ")} ORDER BY timestamp DESC LIMIT @limit`)
+    .prepare(`SELECT * FROM events WHERE ${clauses.join(" AND ")} ORDER BY timestamp DESC, id DESC LIMIT @limit`)
     .all(params)
     .map(rowToEvent);
 }

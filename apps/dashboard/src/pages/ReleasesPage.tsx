@@ -30,13 +30,13 @@ export function ReleasesPage({ appId }: { appId: string }) {
     <Card className="flex items-center gap-4"><span className="text-sm text-muted">Base</span><SelectBox value={base} items={releases} onValueChange={setBase} /><span className="text-sm text-muted">Target</span><SelectBox value={target} items={releases} onValueChange={setTarget} /></Card>
     {error ? <ErrorState error={error} /> : null}
     {comparison ? <>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <DeltaCard label="Error rate" base={comparison.base.errorRate * 100} target={comparison.target.errorRate * 100} suffix="%" lowerIsBetter />
         <DeltaCard label="p95 React render" base={comparison.base.p95ReactRenderDuration} target={comparison.target.p95ReactRenderDuration} suffix="ms" lowerIsBetter />
         <DeltaCard label="p95 fetch" base={comparison.base.p95FetchDuration} target={comparison.target.p95FetchDuration} suffix="ms" lowerIsBetter />
         <DeltaCard label="Network failures" base={comparison.base.networkFailures} target={comparison.target.networkFailures} lowerIsBetter />
       </div>
-      <div className="grid grid-cols-2 gap-4"><ReleaseCard metrics={comparison.base} /><ReleaseCard metrics={comparison.target} /></div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2"><ReleaseCard metrics={comparison.base} /><ReleaseCard metrics={comparison.target} /></div>
     </> : <Loading />}
   </div>;
 }

@@ -10,6 +10,7 @@ import type { DashboardIdentity } from "./AuthGate";
 import {useAsync} from "./pages/hooks";
 import { api } from "./lib/api"
 import { SelectBox, EmptyState, ErrorState, Loading} from "./components/ui";
+import { DashboardErrorBoundary } from "./DashboardErrorBoundary";
 
 const AnalyzePage = lazy(() => import("./pages/AnalyzePage").then((module) => ({ default: module.AnalyzePage })));
 const AppOverviewPage = lazy(() => import("./pages/AppOverviewPage").then((module) => ({ default: module.AppOverviewPage })));
@@ -50,8 +51,8 @@ export function App({ identity, onSignOut }: { identity: DashboardIdentity; onSi
 
   return (
     <Tooltip.Provider>
-      <div className="grid min-h-screen grid-cols-[240px_1fr] bg-ink text-slate-100">
-        <aside className="border-r border-line bg-panel p-4">
+      <div className="grid min-h-screen grid-cols-1 bg-ink text-slate-100 lg:grid-cols-[240px_1fr]">
+        <aside className="border-b border-line bg-panel p-3 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r lg:p-4">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-ink"><Activity size={20} /></div>
             <div>
@@ -59,8 +60,8 @@ export function App({ identity, onSignOut }: { identity: DashboardIdentity; onSi
               <p className="text-xs text-muted">Runtime telemetry</p>
             </div>
           </div>
-          <Separator.Root className="my-4 h-px bg-line" />
-          <nav className="space-y-1">
+          <Separator.Root className="my-3 h-px bg-line lg:my-4" />
+          <nav className="flex gap-1 overflow-x-auto pb-1 lg:block lg:space-y-1">
             <NavLink to="/" end className={navClassName}>
               <Home size={16} />
               Overview
@@ -71,7 +72,7 @@ export function App({ identity, onSignOut }: { identity: DashboardIdentity; onSi
             </NavLink> : null}
             {identity.role === "owner" ? <NavLink to="/admin" className={navClassName}>
               <Shield size={16} />
-              Access & audit
+              Access & ops
             </NavLink> : null}
             {appBase ? appNav.filter((item) => identity.role !== "viewer" || !["/settings", "/analyze"].includes(item.path)).map((item) => {
               const Icon = item.icon;
@@ -85,7 +86,7 @@ export function App({ identity, onSignOut }: { identity: DashboardIdentity; onSi
           </nav>
         </aside>
         <main className="min-w-0">
-          <header className="flex h-16 items-center justify-between border-b border-line px-6">
+          <header className="flex min-h-16 items-center justify-between gap-3 border-b border-line px-4 py-2 lg:px-6">
             <div className="flex items-center gap-3">
               <Search size={18} className="text-muted" />
 
@@ -113,8 +114,8 @@ export function App({ identity, onSignOut }: { identity: DashboardIdentity; onSi
               </DropdownMenu.Content>
             </DropdownMenu.Root>
           </header>
-          <div className="p-6">
-            <Suspense fallback={<Loading />}><Routes>
+          <div className="p-4 lg:p-6">
+            <DashboardErrorBoundary><Suspense fallback={<Loading />}><Routes>
               <Route path="/" element={<OverviewPage />} />
               <Route path="/setup" element={identity.role === "owner" ? <SetupPage /> : <Navigate to="/" replace />} />
               <Route path="/admin" element={identity.role === "owner" ? <AdminPage /> : <Navigate to="/" replace />} />
@@ -128,7 +129,7 @@ export function App({ identity, onSignOut }: { identity: DashboardIdentity; onSi
               <Route path="/apps/:appId/settings" element={identity.role !== "viewer" ? <AppPage>{(appId) => <ProjectSettingsPage appId={appId} />}</AppPage> : <Navigate to="/" replace />} />
               <Route path="/apps/:appId/analyze" element={identity.role !== "viewer" ? <AppPage>{(appId) => <AnalyzePage appId={appId} />}</AppPage> : <Navigate to="/" replace />} />
               <Route path="*" element={<NotFoundPage />} />
-            </Routes></Suspense>
+            </Routes></Suspense></DashboardErrorBoundary>
           </div>
         </main>
       </div>
@@ -137,7 +138,7 @@ export function App({ identity, onSignOut }: { identity: DashboardIdentity; onSi
 }
 
 function navClassName({ isActive }: { isActive: boolean }) {
-  return `flex items-center gap-2 rounded-md px-3 py-2 text-sm ${isActive ? "bg-line text-white" : "text-muted hover:bg-line/60 hover:text-white"}`;
+  return `flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm ${isActive ? "bg-line text-white" : "text-muted hover:bg-line/60 hover:text-white"}`;
 }
 
 function AppPage({ children }: { children: (appId: string) => ReactNode }) {
