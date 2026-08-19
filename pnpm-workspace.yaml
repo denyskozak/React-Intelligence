@@ -4,3 +4,6 @@ packages:
 allowBuilds:
   better-sqlite3: true
   esbuild: true
+injectWorkspacePackages: true
+syncInjectedDepsAfterScripts:
+  - build

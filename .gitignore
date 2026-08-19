@@ -5,6 +5,7 @@ data/
 .DS_Store
 .idea/
 *.log
+backups/
 .env
 .env.*
 !.env.example

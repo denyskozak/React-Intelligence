@@ -1,8 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode, Profiler, useEffect } from "react";
 import { captureProfilerCommit, captureReactError, cleanupReactIntelligence, configureReactIntelligence } from "./runtime";
-import type { ReactIntelligenceProviderProps } from "./types";
+import type { IntelligenceProfilerProps, ReactIntelligenceProviderProps } from "./types";
 
-class ReactIntelligenceErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+export class ReactIntelligenceErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { failed: boolean }> {
   state = { failed: false };
 
   static getDerivedStateFromError() {
@@ -14,18 +14,20 @@ class ReactIntelligenceErrorBoundary extends Component<{ children: ReactNode }, 
   }
 
   render() {
-    if (this.state.failed) return null;
+    if (this.state.failed) return this.props.fallback ?? null;
     return this.props.children;
   }
 }
 
-export function ReactIntelligenceProvider({ children, ...options }: ReactIntelligenceProviderProps) {
+export function ReactIntelligenceProvider({ children, profileRoot = false, ...options }: ReactIntelligenceProviderProps) {
   useEffect(() => {
     configureReactIntelligence(options);
     return cleanupReactIntelligence;
   }, [
     options.appId,
     options.endpoint,
+    options.writeKey,
+    options.processingMode,
     options.environment,
     options.release,
     options.userId,
@@ -34,19 +36,24 @@ export function ReactIntelligenceProvider({ children, ...options }: ReactIntelli
     options.capturePerformance,
     options.captureUserActions,
     options.sampleRate,
-    options.scrubText
+    options.scrubText,
+    options.maxQueueSize,
+    options.flushIntervalMs,
+    options.persistOfflineEvents
   ]);
 
+  return profileRoot ? <IntelligenceProfiler id="ReactApp">{children}</IntelligenceProfiler> : children;
+}
+
+export function IntelligenceProfiler({ id, children }: IntelligenceProfilerProps) {
   return (
-    <ReactIntelligenceErrorBoundary>
-      <Profiler
-        id="ReactApp"
-        onRender={(id, phase, actualDuration, baseDuration, startTime, commitTime) => {
-          captureProfilerCommit({ id, phase, actualDuration, baseDuration, startTime, commitTime });
-        }}
-      >
-        {children}
-      </Profiler>
-    </ReactIntelligenceErrorBoundary>
+    <Profiler
+      id={id}
+      onRender={(profilerId, phase, actualDuration, baseDuration, startTime, commitTime) => {
+        captureProfilerCommit({ id: profilerId, phase, actualDuration, baseDuration, startTime, commitTime });
+      }}
+    >
+      {children}
+    </Profiler>
   );
 }

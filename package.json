@@ -10,7 +10,17 @@
     "dev:demo": "pnpm --filter @react-intelligence/demo dev",
     "dev:test-app": "pnpm --filter @react-intelligence/test-app dev",
     "build": "pnpm -r build",
+    "test": "pnpm --filter @react-intelligence/shared build && pnpm --filter @react-intelligence/sdk build && pnpm --filter @react-intelligence/server test",
+    "smoke:sdk": "pnpm --filter @react-intelligence/shared build && pnpm --filter @react-intelligence/sdk build && pnpm --filter @react-intelligence/server smoke:sdk",
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm check:sdk-package && pnpm check:server-deploy",
+    "check:sdk-package": "node scripts/check-sdk-package.mjs",
+    "check:server-deploy": "node scripts/check-server-deploy.mjs",
+    "setup": "node scripts/setup-env.mjs",
     "seed": "pnpm --filter @react-intelligence/server seed",
+    "upload:sourcemap": "node scripts/upload-source-map.mjs",
+    "db:backup": "pnpm --filter @react-intelligence/server db:backup",
+    "db:restore": "pnpm --filter @react-intelligence/server db:restore",
+    "db:migrations": "pnpm --filter @react-intelligence/server db:migrations",
     "typecheck": "pnpm --filter @react-intelligence/shared build && pnpm --filter @react-intelligence/sdk build && pnpm -r typecheck"
   },
   "devDependencies": {

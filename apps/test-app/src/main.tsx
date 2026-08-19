@@ -1,4 +1,4 @@
-import { ReactIntelligenceProvider, track } from "@react-intelligence/sdk";
+import { configureReactIntelligence, IntelligenceProfiler, ReactIntelligenceProvider, track } from "@react-intelligence/sdk";
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
@@ -8,6 +8,18 @@ const products = [
   { id: 2, name: "React Profiler Tee", price: 32 },
   { id: 3, name: "Observability Notebook", price: 12 }
 ];
+
+const telemetryOptions = {
+  appId: "test-store",
+  endpoint: "http://localhost:4000",
+  writeKey: "ri_dev_test",
+  processingMode: "local" as const,
+  environment: "test",
+  release: "0.2.0-browser-test",
+  captureConsole: true
+};
+
+configureReactIntelligence(telemetryOptions);
 
 function Store() {
   const [cart, setCart] = useState(0);
@@ -88,9 +100,11 @@ function Store() {
 }
 
 createRoot(document.getElementById("root")!).render(
-    <ReactIntelligenceProvider appId="test-store" endpoint="http://localhost:4000" environment="test" release="0.1.0-browser-test">
+    <ReactIntelligenceProvider {...telemetryOptions}>
       <BrowserRouter>
-        <Store />
+        <IntelligenceProfiler id="Store">
+          <Store />
+        </IntelligenceProfiler>
       </BrowserRouter>
     </ReactIntelligenceProvider>
 )
