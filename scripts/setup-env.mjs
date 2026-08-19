@@ -28,7 +28,9 @@ try {
     ""
   ].join("\n"), { mode: 0o600 });
   console.log("Created .env with random local credentials.");
-  console.log(`Dashboard owner token: ${dashboardToken}`);
-  console.log(`Demo write key: ${demoWriteKey}`);
-  console.log(`Test Store write key: ${testWriteKey}`);
+  if (!process.env.CI) {
+    console.log(`Dashboard owner token: ${dashboardToken}`);
+    console.log(`Demo write key: ${demoWriteKey}`);
+    console.log(`Test Store write key: ${testWriteKey}`);
+  }
 }

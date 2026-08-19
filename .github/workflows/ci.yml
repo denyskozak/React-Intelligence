@@ -22,6 +22,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm audit --prod --audit-level high
+      - name: Generate ephemeral Compose environment
+        run: pnpm setup
       - run: docker compose config --quiet
       - run: docker build -f Dockerfile.server -t react-intelligence-server:test .
       - run: docker build -f Dockerfile.dashboard -t react-intelligence-dashboard:test .
