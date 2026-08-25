@@ -108,6 +108,16 @@ export function flushReactIntelligence() {
   return flush();
 }
 
+export function getReactIntelligenceStatus() {
+  return {
+    configured,
+    deliveryBlocked,
+    queueSize: queue.length,
+    appId: options?.appId,
+    endpoint: options?.endpoint
+  };
+}
+
 function enqueue(type: IntelligenceEvent["type"], payload: Record<string, unknown>, route = getRoute()) {
   if (!configured || !options) return;
   const safePayload = sanitize(payload) as Record<string, unknown>;

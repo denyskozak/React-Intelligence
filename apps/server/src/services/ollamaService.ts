@@ -47,6 +47,7 @@ ${JSON.stringify(diagnosticContext)}
 `;
 
   const ollamaBaseUrl = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
+  const timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS ?? 180_000);
   const response = await fetch(`${ollamaBaseUrl.replace(/\/$/, "")}/api/generate`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -57,7 +58,8 @@ ${JSON.stringify(diagnosticContext)}
       format: responseFormat,
       options: { temperature: 0 }
     }),
-    signal: AbortSignal.timeout(60_000)
+
+    signal: AbortSignal.timeout(timeoutMs)
   });
   if (!response.ok) throw new Error(`Ollama returned ${response.status}`);
   const body = (await response.json()) as { response?: string };
@@ -87,7 +89,7 @@ function buildDiagnosticContext(events: IntelligenceEvent[]) {
   const representativeEvents = events
     .slice()
     .sort((a, b) => relevance(b) - relevance(a) || b.timestamp.localeCompare(a.timestamp))
-    .slice(0, 120)
+    .slice(0, 40)
     .map((event) => ({
       id: event.id,
       type: event.type,
