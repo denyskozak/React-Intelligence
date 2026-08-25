@@ -1,4 +1,4 @@
-import { configureReactIntelligence, IntelligenceProfiler, ReactIntelligenceProvider, track } from "@react-intelligence/sdk";
+import { IntelligenceProfiler, ReactIntelligenceProvider, track, flushReactIntelligence, ReactIntelligenceErrorBoundary } from "@react-intelligence/sdk";
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
@@ -19,7 +19,6 @@ const telemetryOptions = {
   captureConsole: true
 };
 
-configureReactIntelligence(telemetryOptions);
 
 function Store() {
   const [cart, setCart] = useState(0);
@@ -27,9 +26,10 @@ function Store() {
   const [message, setMessage] = useState("Ready to generate telemetry");
 
 
-  function addToCart(product: (typeof products)[number]) {
+  async function addToCart(product: (typeof products)[number]) {
     setCart((count) => count + 1);
     track("product_added", { productId: product.id, productName: product.name, price: product.price });
+    await flushReactIntelligence();
     setMessage(`${product.name} added to cart`);
   }
 
@@ -38,12 +38,22 @@ function Store() {
     setMessage(response.ok ? "Inventory service is healthy" : "Inventory check failed");
   }
 
-  function checkout(event: React.FormEvent) {
+  async function checkout(event: React.FormEvent) {
     event.preventDefault();
     track("checkout_completed", { cartSize: cart, hasEmail: Boolean(email) });
     console.warn("Test store checkout completed", { cartSize: cart });
     setMessage("Order completed — telemetry queued");
   }
+
+    async function sendCustomEvent() {
+        track("debug_custom_event", { source: "debug_panel" });
+        await flushReactIntelligence();
+        setMessage("Debug event sent");
+    }
+
+    function triggerError() {
+        throw new Error("Debug test error");
+    }
 
   return (
     <main>
@@ -57,11 +67,22 @@ function Store() {
         <NavLink data-testid="nav-account" to="/account"  >Account</NavLink>
       </nav>
       <p className="status" role="status">{message}</p>
+        <section className="debug-panel">
+            <h2>Telemetry Debug</h2>
+            <p>App ID: {telemetryOptions.appId}</p>
+            <p>Endpoint: {telemetryOptions.endpoint}</p>
+            <p>Environment: {telemetryOptions.environment}</p>
+            <p>Release: {telemetryOptions.release}</p>
 
+            <button onClick={sendCustomEvent}>Send custom event</button>
+            <button onClick={triggerError}>Trigger error</button>
+            <button onClick={() => void flushReactIntelligence()}>Flush telemetry</button>
+        </section>
         <Routes>
 
             <Route path="/products"
                 element={
+                <IntelligenceProfiler id="ProductGrid">
                 <section className="grid">
                     {products.map((product) => (
                         <article key={product.id}>
@@ -72,26 +93,34 @@ function Store() {
                     ))}
                     <button data-testid="inventory-check" className="secondary" onClick={checkInventory}>Check inventory API</button>
                 </section>
+                </IntelligenceProfiler>
             }
                    >
             </Route>
 
             <Route path="checkout"
                 element={
+                <IntelligenceProfiler id="CheckoutForm">
                 <form onSubmit={checkout}>
                     <h2>Checkout</h2>
                     <label>Email<input data-testid="checkout-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
                     <p>{cart} item(s) in your cart</p>
                     <button data-testid="complete-checkout" type="submit">Complete order</button>
                 </form>
+                </IntelligenceProfiler>
             }>
             </Route>
 
+
+
             <Route path="/account"
                 element={
+                <IntelligenceProfiler id="CheckoutForm">
                 <section className="account"><h2>Account</h2><p>No saved orders yet.</p></section>
+                </IntelligenceProfiler>
             }>
             </Route>
+
         </Routes>
     </main>
 
@@ -102,9 +131,11 @@ function Store() {
 createRoot(document.getElementById("root")!).render(
     <ReactIntelligenceProvider {...telemetryOptions}>
       <BrowserRouter>
-        <IntelligenceProfiler id="Store">
-          <Store />
-        </IntelligenceProfiler>
+          <ReactIntelligenceErrorBoundary fallback={<main>Test error captured</main>}>
+              <IntelligenceProfiler id="Store">
+                  <Store />
+              </IntelligenceProfiler>
+          </ReactIntelligenceErrorBoundary>
       </BrowserRouter>
     </ReactIntelligenceProvider>
 )

@@ -143,7 +143,7 @@ export async function buildApp(config: ServerConfig = loadConfig()): Promise<Fas
     }
     for (const appId of result.acceptedAppIds) queueAlertWebhooks(evaluateAlerts(appId), config);
     recordIngestionMetrics(result);
-    return { accepted: result.accepted, duplicates: result.duplicates };
+    return { accepted: result.accepted, duplicates: result.duplicates, rejected: result.rejected, acceptedAppIds: result.acceptedAppIds };
   });
 
   app.get("/api/projects", async (request, reply) => {
@@ -361,7 +361,7 @@ export async function buildApp(config: ServerConfig = loadConfig()): Promise<Fas
     if (!authorizeAppManage(request, reply, config, appId)) return;
     const parsed = analyzeRequestSchema.safeParse(request.body);
     if (!parsed.success) return badRequest(reply, "Invalid analysis request", parsed.error.flatten());
-    const events = getRecentEvents(appId, 500, parsed.data.timeRange);
+    const events = getRecentEvents(appId, 100, parsed.data.timeRange);
     try {
       const analysis = await analyzeWithOllama({ appId, events, ...parsed.data });
       const runId = recordAnalysis(appId, parsed.data.question, parsed.data.model, parsed.data.timeRange, analysis);
