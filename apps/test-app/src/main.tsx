@@ -67,7 +67,17 @@ function Store() {
         <NavLink data-testid="nav-account" to="/account"  >Account</NavLink>
       </nav>
       <p className="status" role="status">{message}</p>
+        <section className="debug-panel">
+            <h2>Telemetry Debug</h2>
+            <p>App ID: {telemetryOptions.appId}</p>
+            <p>Endpoint: {telemetryOptions.endpoint}</p>
+            <p>Environment: {telemetryOptions.environment}</p>
+            <p>Release: {telemetryOptions.release}</p>
 
+            <button onClick={sendCustomEvent}>Send custom event</button>
+            <button onClick={triggerError}>Trigger error</button>
+            <button onClick={() => void flushReactIntelligence()}>Flush telemetry</button>
+        </section>
         <Routes>
 
             <Route path="/products"
