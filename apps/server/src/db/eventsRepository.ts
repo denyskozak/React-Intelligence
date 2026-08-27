@@ -113,7 +113,7 @@ export function listEvents(appId: string, filters: EventFilters = {}): Intellige
     }
   }
   if (filters.search) {
-    clauses.push("(payload LIKE @search OR route LIKE @search OR sessionId LIKE @search)");
+    clauses.push("(id LIKE @search OR payload LIKE @search OR route LIKE @search OR sessionId LIKE @search)");
     params.search = `%${filters.search}%`;
   }
 

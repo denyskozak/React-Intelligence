@@ -67,32 +67,31 @@ function Store() {
         <NavLink data-testid="nav-account" to="/account"  >Account</NavLink>
       </nav>
       <p className="status" role="status">{message}</p>
-        <section className="debug-panel">
-            <h2>Telemetry Debug</h2>
-            <p>App ID: {telemetryOptions.appId}</p>
-            <p>Endpoint: {telemetryOptions.endpoint}</p>
-            <p>Environment: {telemetryOptions.environment}</p>
-            <p>Release: {telemetryOptions.release}</p>
 
-            <button onClick={sendCustomEvent}>Send custom event</button>
-            <button onClick={triggerError}>Trigger error</button>
-            <button onClick={() => void flushReactIntelligence()}>Flush telemetry</button>
-        </section>
         <Routes>
 
             <Route path="/products"
                 element={
                 <IntelligenceProfiler id="ProductGrid">
-                <section className="grid">
-                    {products.map((product) => (
-                        <article key={product.id}>
-                            <div className="product-icon">RI</div>
-                            <h2>{product.name}</h2><p>€{product.price}</p>
-                            <button data-testid={`add-product-${product.id}`} onClick={() => addToCart(product)}>Add to cart</button>
-                        </article>
-                    ))}
-                    <button data-testid="inventory-check" className="secondary" onClick={checkInventory}>Check inventory API</button>
-                </section>
+                    <section className="space-y-4">
+                        <div className="grid grid-cols-3">
+                            {products.map((product) => (
+                                <article key={product.id}>
+                                    <div className="product-icon">RI</div>
+                                    <h2>{product.name}</h2><p>€{product.price}</p>
+                                    <button data-testid={`add-product-${product.id}`}
+                                            onClick={() => addToCart(product)}>Add to cart
+                                    </button>
+                                </article>
+                            ))}
+                        </div>
+                        <div className="flex flex-col gap-4 border-t border-line">
+                            <button data-testid="inventory-check" className="secondary" onClick={checkInventory}>Check inventory API</button>
+                            <button className="secondary" onClick={sendCustomEvent}>Send custom event</button>
+                            <button className="secondary" onClick={triggerError}>Trigger error</button>
+                            <button className="secondary" onClick={() => void flushReactIntelligence()}>Flush telemetry</button>
+                        </div>
+                    </section>
                 </IntelligenceProfiler>
             }
                    >
@@ -119,6 +118,12 @@ function Store() {
                 <section className="account"><h2>Account</h2><p>No saved orders yet.</p></section>
                 </IntelligenceProfiler>
             }>
+            </Route>
+
+            <Route path="/" element={
+                <Navigate to="/products" replace>
+                </Navigate>
+                }>
             </Route>
 
         </Routes>

@@ -362,8 +362,9 @@ export async function buildApp(config: ServerConfig = loadConfig()): Promise<Fas
     const parsed = analyzeRequestSchema.safeParse(request.body);
     if (!parsed.success) return badRequest(reply, "Invalid analysis request", parsed.error.flatten());
     const events = getRecentEvents(appId, 100, parsed.data.timeRange);
+    const scopedEvents = scopeEventsForQuestion(events, parsed.data.question);
     try {
-      const analysis = await analyzeWithOllama({ appId, events, ...parsed.data });
+      const analysis = await analyzeWithOllama({ appId, events: scopedEvents, ...parsed.data });
       const runId = recordAnalysis(appId, parsed.data.question, parsed.data.model, parsed.data.timeRange, analysis);
       audit(request, config, "analysis.created", appId, { runId, model: parsed.data.model, timeRange: parsed.data.timeRange });
       return { ...analysis, runId };
@@ -456,6 +457,24 @@ export async function buildApp(config: ServerConfig = loadConfig()): Promise<Fas
   });
 
   return app;
+}
+
+function scopeEventsForQuestion(events: IntelligenceEvent[], question: string) {
+  const normalized = question.toLowerCase();
+
+  if (normalized.includes("component") || normalized.includes("render cost")) {
+    return events.filter((event) => event.type === "react_profiler");
+  }
+
+  if (normalized.includes("network")) {
+    return events.filter((event) => event.type === "network");
+  }
+
+  if (normalized.includes("error")) {
+    return events.filter((event) => event.type === "error" || event.type === "react_error");
+  }
+
+  return events;
 }
 
 function requireReadScope(request: FastifyRequest, reply: FastifyReply, config: ServerConfig) {

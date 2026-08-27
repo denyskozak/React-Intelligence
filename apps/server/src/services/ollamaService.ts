@@ -35,14 +35,63 @@ export async function analyzeWithOllama(input: {
 }): Promise<AnalysisResponse> {
   const diagnosticContext = buildDiagnosticContext(input.events);
   const prompt = `
-Ты анализируешь runtime telemetry React-приложения. Используй только предоставленные данные.
-Каждый вывод обязан ссылаться на реальные event IDs из representativeEvents. Если данных недостаточно, укажи это в limitations и снизь confidence.
-Сначала проверь errors, затем React render cost, network failures и suspicious user flows.
+You are React Intelligence, a strict runtime telemetry analyst for a React application.
 
-App: ${input.appId}
-Time range: ${input.timeRange}
+Your job is to answer the user's question using ONLY the JSON telemetry context below.
+Return ONLY valid JSON matching the requested schema. Do not use Markdown, code blocks, or conversational wrapper text.
+
+GLOBAL RULES:
+1. Answer strictly and exclusively the single question provided in input.question. Do not infer, assume, or address unasked questions.
+2. Do not invent, infer, or guess causes that are not directly supported by telemetry.
+3. Every finding must be backed by real event IDs copied verbatim from:
+   - representativeEvents[].id
+   - topComponentsByRenderCost[].eventId
+4. Never truncate, synthesize, reformat, or shorten event IDs.
+5. Use at most 3 evidenceEventIds per finding.
+6. The evidence text must match the evidenceEventIds count and content.
+7. The summary must be specific and must mention the key metric, route, component, or event type that supports the answer.
+8. suggestedQueries must contain exactly 2 or 3 useful follow-up questions relevant *only* to the answered question.
+9. Do not give generic web development advice. Do not mention CDN, node_modules, bundle size, scripts, stylesheets, routing optimizations, or code splitting unless those exact facts are directly present in an error or network event.
+
+QUESTION ROUTING RULES:
+- If the question asks about components, render cost, React profiler, slow renders, actualDuration, or baseDuration:
+  * Use topComponentsByRenderCost as the primary source.
+  * Use only react_profiler events as evidence.
+  * Ignore performance, network, route_change, resource, navigation, console, and custom events.
+  * actualDuration and baseDuration are milliseconds (ms), never seconds.
+  * A good finding title is the component name.
+  * Evidence should include component, route, phase, actualDuration ms, and baseDuration ms.
+  * Evidence must be a human-readable sentence, not an array or tuple.
+  * Round duration values to 2 decimal places.
+
+- If the question asks about routes with errors:
+  * Use only error and react_error events.
+  * Group findings by route.
+  * Evidence should include route, error message/type, and count when available.
+
+- If the question asks about slowest network calls or failed network calls:
+  * Use only network events.
+  * Prefer events where success=false, status >= 400, or duration is high.
+  * Group findings by route or URL.
+  * Evidence should include URL/route, status, success, and duration if available.
+
+- If the question asks about both errors and network:
+  * Use only error, react_error, and network events.
+  * Do not use react_profiler or performance events.
+
+STRICT FALLBACK:
+- If the relevant event type is missing, return:
+  summary: "No reliable findings were found in the provided events for this query."
+  findings: []
+  confidence: 0.2
+  limitations: include a short explanation of which event type was missing.
+- If available events do not contain enough fields to answer, return no findings instead of guessing.
+
+App ID: ${input.appId}
+Time Range: ${input.timeRange}
 Question: ${input.question}
-Telemetry context:
+
+Telemetry Context JSON:
 ${JSON.stringify(diagnosticContext)}
 `;
 
@@ -63,7 +112,49 @@ ${JSON.stringify(diagnosticContext)}
   });
   if (!response.ok) throw new Error(`Ollama returned ${response.status}`);
   const body = (await response.json()) as { response?: string };
-  return parseAnalysis(body.response ?? "");
+  const analysis = parseAnalysis(body.response ?? "");
+  return validateEvidenceEventIds(analysis, diagnosticContext);
+}
+
+function validateEvidenceEventIds(
+    analysis: AnalysisResponse,
+    diagnosticContext: ReturnType<typeof buildDiagnosticContext>
+): AnalysisResponse {
+  const allowedIds = new Set([
+    ...diagnosticContext.representativeEvents.map((event) => event.id),
+    ...diagnosticContext.topComponentsByRenderCost.map((event) => event.eventId)
+  ]);
+
+  const validFindings = analysis.findings.filter((finding) =>
+      finding.evidenceEventIds.length > 0 &&
+      finding.evidenceEventIds.every((id) => allowedIds.has(id))
+  );
+
+  const removedCount = analysis.findings.length - validFindings.length;
+
+  if (!validFindings.length) {
+    return {
+      ...analysis,
+      summary: "No reliable findings could be produced from the provided telemetry events.",
+      findings: [],
+      confidence: Math.min(analysis.confidence, 0.3),
+      limitations: [
+        ...analysis.limitations,
+        "The model did not provide findings backed by valid event IDs."
+      ]
+    };
+  }
+
+  return {
+    ...analysis,
+    findings: validFindings.map((finding) => ({
+      ...finding,
+      evidenceEventIds: finding.evidenceEventIds.slice(0, 3)
+    })),
+    limitations: removedCount
+        ? [...analysis.limitations, "Findings with unknown evidence event IDs were removed."]
+        : analysis.limitations
+  };
 }
 
 export async function getOllamaStatus() {
@@ -99,11 +190,26 @@ function buildDiagnosticContext(events: IntelligenceEvent[]) {
       environment: event.environment,
       payload: event.payload
     }));
+
+  const profilerEvents = events.filter((event) => event.type === "react_profiler");
+
+  const topComponentsByRenderCost = profilerEvents
+      .map((event) => ({
+        eventId: event.id,
+        component: event.payload.id,
+        actualDuration: event.payload.actualDuration,
+        baseDuration: event.payload.baseDuration,
+        phase: event.payload.phase,
+        route: event.route
+      }))
+      .sort((a, b) => Number(b.actualDuration ?? 0) - Number(a.actualDuration ?? 0))
+      .slice(0, 10);
   return {
     totalEvents: events.length,
     countsByType,
     topRoutes: Object.entries(countsByRoute).sort((a, b) => b[1] - a[1]).slice(0, 15),
-    representativeEvents
+    representativeEvents,
+    topComponentsByRenderCost
   };
 }
 

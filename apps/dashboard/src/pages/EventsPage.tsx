@@ -81,10 +81,7 @@ export function EventsPage({ appId }: { appId: string }) {
               </tbody>
             </table></div>
 
-            <p>No events for {appId}</p>
-            <p>Current filters: type={type}, route={route || "any"}, release={release || "any"}, environment={environment || "any"}, timeRange={timeRange}</p>
-            <button onClick={reset}>Reset filters</button>
-            <button onClick={() => setFilter("timeRange", "all")}>Show all time</button>
+            {!data?.events.length && <p className="p-6 text-sm text-muted">No events match these filters.</p>}
 
             {data?.events.length ? <div className="flex items-center justify-between border-t border-line p-3 text-sm text-muted">
               <span>{data.events.length} events loaded{loading ? " · refreshing…" : ""}</span>
