@@ -18,22 +18,30 @@ export function AnalyzePage({ appId }: { appId: string }) {
   const [question, setQuestion] = useState(suggestions[0]);
   const [model, setModel] = useState("llama3.1");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<Awaited<ReturnType<typeof api.analyze>> | null>(null);
   const [error, setError] = useState("");
+  const [analysis, setAnalysis] = useState<{
+    question: string;
+    result: Awaited<ReturnType<typeof api.analyze>>;
+  } | null>(null);
   const status = useAsync(api.aiStatus, []);
   const history = useAsync(() => api.analysisHistory(appId), [appId]);
   const models = status.data?.models.length ? status.data.models : ["llama3.1", "llama3", "mistral", "codellama"];
+
+
 
   useEffect(() => {
     if (status.data?.models.length && !status.data.models.includes(model)) setModel(status.data.models[0]);
   }, [status.data?.models.join("|")]);
 
   async function analyze() {
+    const submittedQuestion = question.trim();
+    if (!submittedQuestion) return;
+
     setLoading(true);
     setError("");
     try {
       const nextResult = await api.analyze(appId, { question, model, timeRange: "24h" });
-      setResult(nextResult);
+      setAnalysis({question: submittedQuestion, result: nextResult});
       history.setData({ runs: [{ id: nextResult.runId ?? crypto.randomUUID(), question, model, timeRange: "24h", response: nextResult, createdAt: new Date().toISOString() }, ...(history.data?.runs ?? [])] });
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Analysis failed");
@@ -41,6 +49,7 @@ export function AnalyzePage({ appId }: { appId: string }) {
       setLoading(false);
     }
   }
+
 
   return (
     <div className="space-y-6">
@@ -62,15 +71,15 @@ export function AnalyzePage({ appId }: { appId: string }) {
         </div>
       </Card>
       {error ? <Card className="border-bad/40 text-sm text-bad">{error}</Card> : null}
-      {result ? (
+      {analysis ? (
         <div className="space-y-4">
           <Card>
             <h2 className="mb-2 font-semibold">Summary</h2>
-            <p className="text-sm leading-6 text-slate-300">{result.summary}</p>
-            <p className="mt-2 text-xs text-muted">Confidence: {Math.round(result.confidence * 100)}%</p>
+            <p className="text-sm leading-6 text-slate-300">{analysis.result.summary}</p>
+            <p className="mt-2 text-xs text-muted">Confidence: {Math.round(analysis.result.confidence * 100)}%</p>
           </Card>
           <div className="grid gap-4">
-            {result.findings.map((finding) => (
+            {analysis.result.findings.map((finding) => (
               <Card key={finding.title}>
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="font-semibold">{finding.title}</h3>
@@ -84,14 +93,14 @@ export function AnalyzePage({ appId }: { appId: string }) {
           </div>
           <Card>
             <h2 className="mb-3 font-semibold">Suggested Follow-ups</h2>
-            <div className="flex flex-wrap gap-2">{result.suggestedQueries.map((item) => <button key={item} onClick={() => setQuestion(item)} className="badge hover:border-accent">{item}</button>)}</div>
+            <div className="flex flex-wrap gap-2">{analysis.result.suggestedQueries.map((item) => <button key={item} onClick={() => setQuestion(item)} className="badge hover:border-accent">{item}</button>)}</div>
           </Card>
-          {result.limitations.length ? <Card><h2 className="mb-2 font-semibold">Limitations</h2>{result.limitations.map((item) => <p key={item} className="text-sm text-muted">• {item}</p>)}</Card> : null}
+          {analysis.result.limitations.length ? <Card><h2 className="mb-2 font-semibold">Limitations</h2>{analysis.result.limitations.map((item) => <p key={item} className="text-sm text-muted">• {item}</p>)}</Card> : null}
         </div>
       ) : null}
       <Card>
         <h2 className="mb-3 flex items-center gap-2 font-semibold"><History size={16} /> Analysis history</h2>
-        <div className="space-y-2">{(history.data?.runs ?? []).slice(0, 10).map((run) => <button key={run.id} onClick={() => { setQuestion(run.question); setResult(run.response); }} className="block w-full rounded bg-ink p-3 text-left text-sm"><span className="font-medium">{run.question}</span><span className="ml-2 text-xs text-muted">{run.model} · {new Date(run.createdAt).toLocaleString()}</span></button>)}{!history.data?.runs.length ? <p className="text-sm text-muted">No saved analyses yet.</p> : null}</div>
+        <div className="space-y-2">{(history.data?.runs ?? []).slice(0, 10).map((run) => <button key={run.id} onClick={() => { setQuestion(run.question); setAnalysis({ question: run.question, result: run.response }); }} className="block w-full rounded bg-ink p-3 text-left text-sm"><span className="font-medium">{run.question}</span><span className="ml-2 text-xs text-muted">{run.model} · {new Date(run.createdAt).toLocaleString()}</span></button>)}{!history.data?.runs.length ? <p className="text-sm text-muted">No saved analyses yet.</p> : null}</div>
       </Card>
     </div>
   );
