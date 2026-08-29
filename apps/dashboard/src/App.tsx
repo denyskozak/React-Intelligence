@@ -11,6 +11,7 @@ import {useAsync} from "./pages/hooks";
 import { api } from "./lib/api"
 import { SelectBox, EmptyState, ErrorState, Loading} from "./components/ui";
 import { DashboardErrorBoundary } from "./DashboardErrorBoundary";
+import {AIChatWidget} from "./components/AIChat";
 
 const AnalyzePage = lazy(() => import("./pages/AnalyzePage").then((module) => ({ default: module.AnalyzePage })));
 const AppOverviewPage = lazy(() => import("./pages/AppOverviewPage").then((module) => ({ default: module.AppOverviewPage })));
@@ -49,6 +50,15 @@ export function App({ identity, onSignOut }: { identity: DashboardIdentity; onSi
   const selectedAppId = currentAppId ?? appIds[0];
   const canSelectApp = selectedAppId && appIds.includes(selectedAppId);
 
+  async function analyzeWithWidget(question: string, model: string) {
+    if (!currentAppId) throw new Error("No app selected");
+
+    return api.analyze(currentAppId, {
+      question,
+      model,
+      timeRange: "24h"
+    });
+  }
   return (
     <Tooltip.Provider>
       <div className="grid min-h-screen grid-cols-1 bg-ink text-slate-100 lg:grid-cols-[240px_1fr]">
@@ -131,6 +141,7 @@ export function App({ identity, onSignOut }: { identity: DashboardIdentity; onSi
               <Route path="*" element={<NotFoundPage />} />
             </Routes></Suspense></DashboardErrorBoundary>
           </div>
+          <AIChatWidget appId={currentAppId} onAnalyze={analyzeWithWidget} />
         </main>
       </div>
     </Tooltip.Provider>
@@ -161,3 +172,4 @@ function buildAppPath(pathname: string, nextAppId: string) {
 
   return rest ? `/apps/${encodeURIComponent(nextAppId)}/${rest}` : `/apps/${encodeURIComponent(nextAppId)}`;
 }
+
