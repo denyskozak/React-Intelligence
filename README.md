@@ -2,6 +2,18 @@
 
 React Intelligence is a privacy-first runtime analytics MVP for React applications. The same SDK can send telemetry to a managed endpoint (`remote`) or to a customer-controlled single-node deployment (`local`).
 
+![React Intelligence overview: a React app sends telemetry through the SDK to a local server, SQLite storage, and an analytics dashboard with optional Ollama analysis.](docs/images/overview.svg)
+
+The SDK collects errors, React render timings, network activity, routes, and actions. Your server stores and processes the telemetry, while the dashboard makes it available for investigation. Optional Ollama analysis turns diagnostic context into evidence-linked findings. The illustration shows the self-hosted flow and a conceptual dashboard.
+
+## Top-level system design
+
+![React Intelligence system design: instrumented React application, batched HTTP ingestion, Fastify API, Zod validation, SQLite storage, dashboard queries, and optional local AI.](docs/images/system-design.svg)
+
+Events travel from the SDK queue to the Fastify API, where project credentials, validation, privacy scrubbing, and quotas guard ingestion. SQLite stores the accepted events; the dashboard queries the API for analytics and optional AI analysis. This diagram summarizes the architecture: the SDK also supports offline persistence, console capture is opt-in, and batching is configurable.
+
+## Repository structure
+
 The repository contains:
 
 - `@react-intelligence/sdk` — errors, named React profiler trees, network calls, performance entries, safe user actions, route changes, and custom events.
